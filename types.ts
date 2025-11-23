@@ -1,3 +1,4 @@
+
 export interface GameState {
   narrative: string;
   locationName: string;
@@ -6,6 +7,7 @@ export interface GameState {
   moves: number;
   gameOver: boolean;
   category: ResponseCategory;
+  suggestions: string[];
 }
 
 export interface ChatMessage {
@@ -29,4 +31,16 @@ export enum ResponseCategory {
   NORMAL = 'NORMAL',
   REPEAT = 'REPEAT',
   IMPORTANT = 'IMPORTANT'
+}
+
+export interface Content {
+  role: 'user' | 'model';
+  parts: { text: string }[];
+}
+
+export interface SavedGame {
+  gameState: GameState;
+  displayHistory: ChatMessage[];
+  sessionHistory: Content[];
+  timestamp: number;
 }

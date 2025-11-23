@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
-import { initializeGame, sendCommand, generateSceneImage } from './services/geminiService';
-import { GameState, ChatMessage, GameStatus, ResponseCategory } from './types';
-import { RetroInput } from './components/RetroInput';
+
+import React, { useState, useEffect } from 'react';
+import { initializeGame, sendCommand, generateSceneImage, restoreSession } from './services/geminiService';
+import { playInputSound, playResponseSound, playImportantSound, playGameOverSound, setMute } from './services/audioService';
+import { GameState, ChatMessage, GameStatus, ResponseCategory, Content, SavedGame } from './types';
+import { RetroInput, Suggestion } from './components/RetroInput';
 import { StatusPanel } from './components/StatusPanel';
 import { GameLog } from './components/GameLog';
 
@@ -12,12 +14,26 @@ const INITIAL_MESSAGE: ChatMessage = {
   isSystemMessage: true
 };
 
+const SAVE_KEY = 'zork_save_v1';
+
 const App: React.FC = () => {
   const [status, setStatus] = useState<GameStatus>(GameStatus.IDLE);
   const [history, setHistory] = useState<ChatMessage[]>([INITIAL_MESSAGE]);
+  const [sessionHistory, setSessionHistory] = useState<Content[]>([]);
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [enableImages, setEnableImages] = useState<boolean>(true);
+  const [enableSound, setEnableSound] = useState<boolean>(true);
+  const [hasSaveData, setHasSaveData] = useState<boolean>(false);
+
+  useEffect(() => {
+    const saved = localStorage.getItem(SAVE_KEY);
+    setHasSaveData(!!saved);
+  }, []);
+
+  useEffect(() => {
+    setMute(!enableSound);
+  }, [enableSound]);
 
   const handleImageGeneration = async (messageId: string, prompt: string) => {
     const imageUrl = await generateSceneImage(prompt);
@@ -36,13 +52,25 @@ const App: React.FC = () => {
     }
   };
 
-  const processGameState = (newState: GameState) => {
+  const processGameState = (newState: GameState, rawText: string) => {
     const messageId = Date.now().toString();
     const newMessage: ChatMessage = {
       id: messageId,
       role: 'model',
       text: newState.narrative,
     };
+
+    // Update session history with the model's raw JSON response
+    setSessionHistory(prev => [...prev, { role: 'model', parts: [{ text: rawText }] }]);
+
+    // Determine sound to play based on game state
+    if (newState.gameOver) {
+      playGameOverSound();
+    } else if (newState.category === ResponseCategory.IMPORTANT) {
+      playImportantSound();
+    } else {
+      playResponseSound();
+    }
 
     // Check category AND if image generation is enabled by user
     if (newState.category === ResponseCategory.IMPORTANT && enableImages) {
@@ -62,11 +90,16 @@ const App: React.FC = () => {
   };
   
   const handleStart = async () => {
+    playInputSound(); // Feedback for clicking start
     setStatus(GameStatus.LOADING);
     setHistory([{ id: 'connecting', role: 'model', text: "接続中... 物語を生成しています..." }]);
+    setSessionHistory([]); // Reset session history
     try {
-      const initialState = await initializeGame();
-      processGameState(initialState);
+      const { gameState, rawText } = await initializeGame();
+      // Initial session history needs the start command which is done inside initializeGame implicitly, 
+      // but to keep track for restoration, we assume the "START_GAME" was the trigger.
+      setSessionHistory([{ role: 'user', parts: [{ text: 'START_GAME' }] }]);
+      processGameState(gameState, rawText);
     } catch (error) {
       console.error(error);
       setStatus(GameStatus.ERROR);
@@ -76,15 +109,21 @@ const App: React.FC = () => {
 
   const handleCommand = async (text: string) => {
     if (status !== GameStatus.PLAYING) return;
+    
+    playInputSound();
 
-    // Optimistic update
+    // Optimistic update for UI
     const newHistory = [...history, { id: `user-${Date.now()}`, role: 'user', text } as ChatMessage];
     setHistory(newHistory);
+    
+    // Update session history with user command
+    setSessionHistory(prev => [...prev, { role: 'user', parts: [{ text }] }]);
+
     setStatus(GameStatus.LOADING);
 
     try {
-      const newState = await sendCommand(text);
-      processGameState(newState);
+      const { gameState, rawText } = await sendCommand(text);
+      processGameState(gameState, rawText);
     } catch (error) {
       console.error(error);
       setHistory(prev => [
@@ -95,12 +134,84 @@ const App: React.FC = () => {
     }
   };
 
+  const handleSave = () => {
+    if (!gameState) return;
+    playInputSound();
+    const saveData: SavedGame = {
+      gameState,
+      displayHistory: history,
+      sessionHistory,
+      timestamp: Date.now()
+    };
+    localStorage.setItem(SAVE_KEY, JSON.stringify(saveData));
+    setHasSaveData(true);
+    alert("ゲームデータを保存しました");
+  };
+
+  const handleLoad = async () => {
+    const saved = localStorage.getItem(SAVE_KEY);
+    if (!saved) return;
+    playInputSound();
+
+    try {
+      setStatus(GameStatus.LOADING);
+      const saveData: SavedGame = JSON.parse(saved);
+      
+      // Restore variables
+      setGameState(saveData.gameState);
+      setHistory(saveData.displayHistory);
+      setSessionHistory(saveData.sessionHistory);
+      
+      // Restore Gemini Session
+      await restoreSession(saveData.sessionHistory);
+      
+      setStatus(saveData.gameState.gameOver ? GameStatus.GAME_OVER : GameStatus.PLAYING);
+      playImportantSound(); // Sound to indicate load success
+    } catch (e) {
+      console.error("Load failed", e);
+      alert("セーブデータの読み込みに失敗しました");
+      setStatus(GameStatus.IDLE);
+    }
+  };
+
   // Handle Game Over reset
   const handleReset = () => {
+    playInputSound();
     setStatus(GameStatus.IDLE);
     setHistory([INITIAL_MESSAGE]);
     setGameState(null);
     setErrorMsg(null);
+    setSessionHistory([]);
+  };
+
+  // Convert string suggestions to Suggestion objects
+  const getSuggestions = (): Suggestion[] => {
+    if (!gameState?.suggestions || gameState.suggestions.length === 0) {
+      return [
+        { label: '周りを見る', command: '周りを見る', autoSubmit: true },
+        { label: '北へ', command: '北へ移動', autoSubmit: true },
+        { label: '南へ', command: '南へ移動', autoSubmit: true },
+        { label: '持ち物', command: '持ち物', autoSubmit: true },
+      ];
+    }
+
+    return gameState.suggestions.map(s => {
+      // Auto-submit navigation, looking, and status checks
+      // "Move North", "Look", "Inventory" -> Safe to auto-submit
+      // "Attack Troll", "Open Box" -> Probably safe in this context too, but let's be slightly conservative
+      // For a smooth "Builder-like" experience, if the suggestion is complete like "take sword", it should probably just execute.
+      // We'll assume most AI suggestions are complete commands.
+      const isMovement = /^(北|南|東|西|上|下|北東|北西|南東|南西)(へ移動)?$/.test(s.replace(/\s/g, ''));
+      const isBasic = s.includes('見る') || s === '持ち物' || s === 'ステータス' || s.includes('待機');
+      
+      // We will default to autoSubmit=true for most things to make it click-to-play,
+      // unless it looks like a template (which the AI shouldn't generate per instructions)
+      return {
+        label: s,
+        command: s,
+        autoSubmit: isMovement || isBasic || true // Make all suggestions auto-submit for snappier gameplay
+      };
+    });
   };
 
   return (
@@ -126,12 +237,22 @@ const App: React.FC = () => {
                   伝説のテキストアドベンチャー (日本語版)
                 </p>
                 
-                <button 
-                  onClick={handleStart}
-                  className="px-8 py-3 bg-green-900 hover:bg-green-700 text-green-100 font-bold rounded border border-green-500 transition-colors font-mono text-xl animate-pulse"
-                >
-                  GAME START
-                </button>
+                <div className="flex flex-col space-y-4">
+                  <button 
+                    onClick={handleStart}
+                    className="px-8 py-3 bg-green-900 hover:bg-green-700 text-green-100 font-bold rounded border border-green-500 transition-colors font-mono text-xl animate-pulse"
+                  >
+                    GAME START
+                  </button>
+                  {hasSaveData && (
+                    <button 
+                      onClick={handleLoad}
+                      className="px-8 py-2 bg-zinc-800 hover:bg-zinc-700 text-green-400 font-bold rounded border border-green-800 transition-colors font-mono text-lg"
+                    >
+                      LOAD GAME
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           )}
@@ -161,7 +282,8 @@ const App: React.FC = () => {
           {status !== GameStatus.IDLE && status !== GameStatus.GAME_OVER && status !== GameStatus.ERROR && (
              <RetroInput 
                onSend={handleCommand} 
-               disabled={status === GameStatus.LOADING} 
+               disabled={status === GameStatus.LOADING}
+               suggestions={getSuggestions()}
              />
           )}
         </div>
@@ -171,7 +293,12 @@ const App: React.FC = () => {
       <StatusPanel 
         gameState={gameState} 
         enableImages={enableImages} 
-        onToggleImages={() => setEnableImages(!enableImages)} 
+        onToggleImages={() => setEnableImages(!enableImages)}
+        enableSound={enableSound}
+        onToggleSound={() => setEnableSound(!enableSound)}
+        onSave={handleSave}
+        onLoad={handleLoad}
+        hasSaveData={hasSaveData}
       />
     </div>
   );

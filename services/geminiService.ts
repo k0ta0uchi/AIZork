@@ -1,5 +1,6 @@
+
 import { GoogleGenAI, Type, Schema } from "@google/genai";
-import { GameState, ResponseCategory } from "../types";
+import { GameState, ResponseCategory, Content } from "../types";
 
 // Initial system instruction to set the persona and rules
 const SYSTEM_INSTRUCTION = `
@@ -25,10 +26,14 @@ const SYSTEM_INSTRUCTION = `
    - **REPEAT**: 既に訪れた場所の再説明、または以前と同じような状況の説明。
    - **NORMAL**: アイテムを取る、インベントリを見る、何もない、失敗したアクションなど、標準的な応答。
 
-5. **出力フォーマット**:
+5. **行動提案 (Suggestions)**:
+   - 現在の状況（場所、見えるアイテム、直前の出来事）に基づいて、プレイヤーが次に取るべき有効なアクションを3〜5個提案してください（suggestions配列）。
+   - 例: "北へ移動", "ランタンを取る", "剣で攻撃", "手紙を読む" など簡潔に。
+
+6. **出力フォーマット**:
    - 常に以下のJSONスキーマに従ってレスポンスを返してください。JSON以外のテキストを含めないでください。
 
-6. **初期状態**:
+7. **初期状態**:
    - ユーザーが "START_GAME" を送信したら、ゲームのオープニング（白い家の西側）を描写し、カテゴリを "IMPORTANT" にしてください。
 
 注意: ユーザー入力が曖昧な場合は、ゲームマスターとして補完するか、質問を返してください。
@@ -66,14 +71,19 @@ const responseSchema: Schema = {
       type: Type.STRING,
       enum: [ResponseCategory.NORMAL, ResponseCategory.REPEAT, ResponseCategory.IMPORTANT],
       description: "メッセージのカテゴリ。",
+    },
+    suggestions: {
+      type: Type.ARRAY,
+      items: { type: Type.STRING },
+      description: "現在の状況で推奨される次のアクション（日本語で3〜5個）。",
     }
   },
-  required: ["narrative", "locationName", "inventory", "score", "moves", "gameOver", "category"],
+  required: ["narrative", "locationName", "inventory", "score", "moves", "gameOver", "category", "suggestions"],
 };
 
 let chatSession: any = null;
 
-export const initializeGame = async (): Promise<GameState> => {
+export const initializeGame = async (): Promise<{ gameState: GameState, rawText: string }> => {
   const apiKey = process.env.API_KEY;
   if (!apiKey) {
     throw new Error("API Key not found");
@@ -93,27 +103,51 @@ export const initializeGame = async (): Promise<GameState> => {
 
   try {
     const response = await chatSession.sendMessage({ message: "START_GAME" });
-    const data = JSON.parse(response.text);
-    return data as GameState;
+    const rawText = response.text || "{}";
+    const data = JSON.parse(rawText);
+    return { gameState: data as GameState, rawText };
   } catch (error) {
     console.error("Failed to initialize game:", error);
     throw error;
   }
 };
 
-export const sendCommand = async (command: string): Promise<GameState> => {
+export const sendCommand = async (command: string): Promise<{ gameState: GameState, rawText: string }> => {
   if (!chatSession) {
     throw new Error("Game session not initialized");
   }
 
   try {
     const response = await chatSession.sendMessage({ message: command });
-    const data = JSON.parse(response.text);
-    return data as GameState;
+    const rawText = response.text || "{}";
+    const data = JSON.parse(rawText);
+    return { gameState: data as GameState, rawText };
   } catch (error) {
     console.error("Failed to process command:", error);
     throw error;
   }
+};
+
+export const restoreSession = async (history: Content[]): Promise<void> => {
+  const apiKey = process.env.API_KEY;
+  if (!apiKey) {
+    throw new Error("API Key not found");
+  }
+
+  const ai = new GoogleGenAI({ apiKey });
+
+  // history needs to be strictly typed for the SDK if possible, but here we pass Content[]
+  // The SDK expects { role: string, parts: { text: string }[] }[]
+  chatSession = ai.chats.create({
+    model: "gemini-2.5-flash",
+    config: {
+      systemInstruction: SYSTEM_INSTRUCTION,
+      responseMimeType: "application/json",
+      responseSchema: responseSchema,
+      temperature: 0.5,
+    },
+    history: history
+  });
 };
 
 export const generateSceneImage = async (description: string): Promise<string | null> => {

@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { GameState } from '../types';
 
@@ -5,14 +6,30 @@ interface StatusPanelProps {
   gameState: GameState | null;
   enableImages: boolean;
   onToggleImages: () => void;
+  enableSound: boolean;
+  onToggleSound: () => void;
+  onSave: () => void;
+  onLoad: () => void;
+  hasSaveData: boolean;
 }
 
-export const StatusPanel: React.FC<StatusPanelProps> = ({ gameState, enableImages, onToggleImages }) => {
+export const StatusPanel: React.FC<StatusPanelProps> = ({ 
+  gameState, 
+  enableImages, 
+  onToggleImages,
+  enableSound,
+  onToggleSound,
+  onSave,
+  onLoad,
+  hasSaveData
+}) => {
   
   const SettingsToggle = () => (
-    <div className="mt-auto mb-4 px-4">
+    <div className="px-4 py-2">
       <h3 className="text-xs uppercase text-green-700 mb-2 border-b border-green-900/50 pb-1">Settings</h3>
-      <div className="flex items-center justify-between group cursor-pointer" onClick={onToggleImages}>
+      
+      {/* Visual Mode Toggle */}
+      <div className="flex items-center justify-between group cursor-pointer mb-3" onClick={onToggleImages}>
         <span className="text-green-400 text-sm">Visual Mode</span>
         <div className="relative">
           <div className={`w-10 h-5 rounded-sm border border-green-700 transition-colors ${enableImages ? 'bg-green-900/50' : 'bg-black'}`}></div>
@@ -23,9 +40,46 @@ export const StatusPanel: React.FC<StatusPanelProps> = ({ gameState, enableImage
           ></div>
         </div>
       </div>
-      <p className="text-[10px] text-green-800 mt-1">
-        {enableImages ? "AUTO GENERATE IMAGES: ON" : "TEXT ONLY MODE"}
-      </p>
+      
+      {/* Sound Toggle */}
+      <div className="flex items-center justify-between group cursor-pointer" onClick={onToggleSound}>
+        <span className="text-green-400 text-sm">Sound FX</span>
+        <div className="relative">
+          <div className={`w-10 h-5 rounded-sm border border-green-700 transition-colors ${enableSound ? 'bg-green-900/50' : 'bg-black'}`}></div>
+          <div 
+            className={`absolute top-0.5 left-0.5 w-4 h-4 bg-green-500 rounded-sm transition-transform duration-200 ${
+              enableSound ? 'translate-x-5 shadow-[0_0_5px_#22c55e]' : 'translate-x-0 opacity-50'
+            }`}
+          ></div>
+        </div>
+      </div>
+    </div>
+  );
+
+  const SystemControls = () => (
+    <div className="px-4 py-2 mt-2">
+      <h3 className="text-xs uppercase text-green-700 mb-2 border-b border-green-900/50 pb-1">System</h3>
+      <div className="grid grid-cols-2 gap-2">
+        <button 
+          onClick={onSave}
+          disabled={!gameState}
+          className="bg-green-900/20 border border-green-800 hover:bg-green-800/30 text-green-400 text-xs py-1 px-2 rounded-sm transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+        >
+          SAVE
+        </button>
+        <button 
+          onClick={onLoad}
+          disabled={!hasSaveData}
+          className="bg-green-900/20 border border-green-800 hover:bg-green-800/30 text-green-400 text-xs py-1 px-2 rounded-sm transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+        >
+          LOAD
+        </button>
+      </div>
+      {hasSaveData && (
+        <p className="text-[10px] text-green-800 mt-1 text-center">
+          DATA FOUND
+        </p>
+      )}
     </div>
   );
 
@@ -38,7 +92,10 @@ export const StatusPanel: React.FC<StatusPanelProps> = ({ gameState, enableImage
         <div className="p-4 text-green-800 text-center mt-10 text-sm uppercase tracking-widest flex-1">
           System Offline
         </div>
-        <SettingsToggle />
+        <div className="mt-auto mb-4">
+          <SettingsToggle />
+          <SystemControls />
+        </div>
         <div className="p-4 border-t border-green-900 text-xs text-green-900 text-center">
           Terminal Ready
         </div>
@@ -89,7 +146,10 @@ export const StatusPanel: React.FC<StatusPanelProps> = ({ gameState, enableImage
         </div>
       </div>
       
-      <SettingsToggle />
+      <div className="mt-auto mb-4 border-t border-green-900/30 pt-2">
+        <SettingsToggle />
+        <SystemControls />
+      </div>
 
       <div className="p-4 border-t border-green-900 text-xs text-green-800 text-center">
          Zork I Simulation
