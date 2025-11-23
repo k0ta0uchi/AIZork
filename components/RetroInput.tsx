@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 
 export interface Suggestion {
@@ -11,13 +12,15 @@ interface RetroInputProps {
   disabled: boolean;
   autoFocus?: boolean;
   suggestions?: Suggestion[];
+  placeholder?: string;
 }
 
 export const RetroInput: React.FC<RetroInputProps> = ({ 
   onSend, 
   disabled, 
   autoFocus = true,
-  suggestions = []
+  suggestions = [],
+  placeholder = "コマンドを入力..."
 }) => {
   const [input, setInput] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
@@ -73,7 +76,7 @@ export const RetroInput: React.FC<RetroInputProps> = ({
           onChange={(e) => setInput(e.target.value)}
           disabled={disabled}
           className="flex-1 bg-transparent border-none outline-none text-green-400 font-mono text-lg placeholder-green-900/50"
-          placeholder={disabled ? "処理中..." : "コマンドを入力..."}
+          placeholder={disabled ? "..." : placeholder}
           autoComplete="off"
         />
       </form>

@@ -1,42 +1,46 @@
 
 import { GoogleGenAI, Type, Schema } from "@google/genai";
-import { GameState, ResponseCategory, Content } from "../types";
+import { GameState, ResponseCategory, Content, Language } from "../types";
 
-// Initial system instruction to set the persona and rules
-const SYSTEM_INSTRUCTION = `
-あなたは伝説のテキストアドベンチャーゲーム「Zork I: The Great Underground Empire (ゾーク1)」のゲームエンジン兼ゲームマスターです。
-以下のルールに厳格に従ってください。
+// Dynamic system instruction based on language
+const getSystemInstruction = (lang: Language) => `
+You are the game engine and game master for the legendary text adventure "Zork I: The Great Underground Empire".
+Follow these rules strictly:
 
-1. **役割**:
-   - ユーザーのコマンド（移動、取る、調べる、攻撃など）を受け取り、ゲームの状態を更新し、結果を描写してください。
-   - Zork I のオリジナルの地図、アイテム、パズル、敵（グルーやトロールなど）の配置と挙動を忠実に再現してください。
-   - 最初の地点は "West of House" (白い家の西側) です。
+1. **Role**:
+   - Accept user commands (move, take, examine, attack, etc.), update game state, and describe the outcome.
+   - Faithfully simulate Zork I's original map, items, puzzles, and enemy behaviors (like Grues and Trolls).
+   - Start location: "West of House".
 
-2. **言語**:
-   - 出力される「narrative（物語の描写）」、「locationName（場所名）」、「inventory（持ち物）」は、**すべて雰囲気のある日本語**に翻訳してください。
-   - 原作のウィットに富んだ表現や、少し皮肉っぽいトーンも日本語で再現してください。
+2. **Language & Tone**:
+   ${lang === 'ja' 
+     ? '- Output "narrative", "locationName", "inventory" in **atmospheric Japanese** (translated from the original).'
+     : '- Output "narrative", "locationName", "inventory" in **English**.'
+   }
+   - Maintain the witty, slightly sarcastic tone of the original Zork.
+   ${lang === 'ja' ? '- Even in Japanese, capture the classic Zork feel.' : ''}
 
-3. **ゲームロジックの維持**:
-   - 暗闇の場所で光源がない場合は、行動を続けるとグルーに食べられてゲームオーバーになるロジックを再現してください。
-   - インベントリの制限や、特定のアイテムがないと進めない場所などのパズル要素を維持してください。
+3. **Game Logic**:
+   - Maintain the logic where moving in the dark without a light source leads to being eaten by a Grue.
+   - Maintain inventory limits and puzzle dependencies.
 
-4. **カテゴリ判定 (重要)**:
-   - 応答には必ず以下のカテゴリを設定してください。
-   - **IMPORTANT**: 初めて訪れる場所、劇的なイベントの発生、重要な発見など、視覚的な描写がふさわしい場面。
-   - **REPEAT**: 既に訪れた場所の再説明、または以前と同じような状況の説明。
-   - **NORMAL**: アイテムを取る、インベントリを見る、何もない、失敗したアクションなど、標準的な応答。
+4. **Categorization (Important)**:
+   - Always set the category:
+   - **IMPORTANT**: First visit to a location, dramatic events, important discoveries (worthy of visual generation).
+   - **REPEAT**: Re-visiting locations or repeated states.
+   - **NORMAL**: Standard actions like taking items, checking inventory, errors.
 
-5. **行動提案 (Suggestions)**:
-   - 現在の状況（場所、見えるアイテム、直前の出来事）に基づいて、プレイヤーが次に取るべき有効なアクションを3〜5個提案してください（suggestions配列）。
-   - 例: "北へ移動", "ランタンを取る", "剣で攻撃", "手紙を読む" など簡潔に。
+5. **Suggestions**:
+   - Provide 3-5 valid next actions based on context in the \`suggestions\` array.
+   - ${lang === 'ja' ? 'Examples: "北へ移動", "ランタンを取る"' : 'Examples: "North", "Take Lantern", "Read Letter"'}
 
-6. **出力フォーマット**:
-   - 常に以下のJSONスキーマに従ってレスポンスを返してください。JSON以外のテキストを含めないでください。
+6. **Output Format**:
+   - ALWAYS respond with the defined JSON schema. NO plain text.
 
-7. **初期状態**:
-   - ユーザーが "START_GAME" を送信したら、ゲームのオープニング（白い家の西側）を描写し、カテゴリを "IMPORTANT" にしてください。
-
-注意: ユーザー入力が曖昧な場合は、ゲームマスターとして補完するか、質問を返してください。
+7. **Initialization**:
+   - When user sends "START_GAME", describe the opening scene (West of House) and set category to "IMPORTANT".
+   
+Note: If user input is ambiguous, ask for clarification as the Game Master.
 `;
 
 const responseSchema: Schema = {
@@ -44,38 +48,38 @@ const responseSchema: Schema = {
   properties: {
     narrative: {
       type: Type.STRING,
-      description: "ゲームの進行状況、部屋の描写、アクションの結果などを日本語で記述。Markdown形式（改行や太字）を使用可能。",
+      description: "Game narrative/description. Can use Markdown.",
     },
     locationName: {
       type: Type.STRING,
-      description: "現在のプレイヤーの場所の名前（日本語）。",
+      description: "Current location name.",
     },
     inventory: {
       type: Type.ARRAY,
       items: { type: Type.STRING },
-      description: "現在プレイヤーが所持しているアイテムのリスト（日本語）。",
+      description: "List of items in inventory.",
     },
     score: {
       type: Type.INTEGER,
-      description: "現在のスコア。",
+      description: "Current score.",
     },
     moves: {
       type: Type.INTEGER,
-      description: "これまでのターン数（移動回数）。",
+      description: "Current move count.",
     },
     gameOver: {
       type: Type.BOOLEAN,
-      description: "プレイヤーが死亡したか、ゲームをクリアした場合はtrue。",
+      description: "True if player died or won.",
     },
     category: {
       type: Type.STRING,
       enum: [ResponseCategory.NORMAL, ResponseCategory.REPEAT, ResponseCategory.IMPORTANT],
-      description: "メッセージのカテゴリ。",
+      description: "Response category.",
     },
     suggestions: {
       type: Type.ARRAY,
       items: { type: Type.STRING },
-      description: "現在の状況で推奨される次のアクション（日本語で3〜5個）。",
+      description: "Recommended next actions (3-5 items).",
     }
   },
   required: ["narrative", "locationName", "inventory", "score", "moves", "gameOver", "category", "suggestions"],
@@ -83,7 +87,7 @@ const responseSchema: Schema = {
 
 let chatSession: any = null;
 
-export const initializeGame = async (): Promise<{ gameState: GameState, rawText: string }> => {
+export const initializeGame = async (lang: Language): Promise<{ gameState: GameState, rawText: string }> => {
   const apiKey = process.env.API_KEY;
   if (!apiKey) {
     throw new Error("API Key not found");
@@ -94,7 +98,7 @@ export const initializeGame = async (): Promise<{ gameState: GameState, rawText:
   chatSession = ai.chats.create({
     model: "gemini-2.5-flash",
     config: {
-      systemInstruction: SYSTEM_INSTRUCTION,
+      systemInstruction: getSystemInstruction(lang),
       responseMimeType: "application/json",
       responseSchema: responseSchema,
       temperature: 0.5,
@@ -128,7 +132,27 @@ export const sendCommand = async (command: string): Promise<{ gameState: GameSta
   }
 };
 
-export const restoreSession = async (history: Content[]): Promise<void> => {
+export const switchSessionLanguage = async (lang: Language): Promise<{ gameState: GameState, rawText: string }> => {
+  if (!chatSession) {
+    throw new Error("Game session not initialized");
+  }
+
+  const prompt = lang === 'ja' 
+    ? "【SYSTEM COMMAND】これ以降の出力（narrative, locationName, inventory, suggestionsなど）はすべて「日本語」で行ってください。直ちに現在の状況を日本語で描写してください。" 
+    : "[SYSTEM COMMAND] Output all future responses (narrative, locationName, inventory, suggestions, etc.) in ENGLISH. Immediately re-describe the current situation in English.";
+
+  try {
+    const response = await chatSession.sendMessage({ message: prompt });
+    const rawText = response.text || "{}";
+    const data = JSON.parse(rawText);
+    return { gameState: data as GameState, rawText };
+  } catch (error) {
+    console.error("Failed to switch language:", error);
+    throw error;
+  }
+};
+
+export const restoreSession = async (history: Content[], lang: Language): Promise<void> => {
   const apiKey = process.env.API_KEY;
   if (!apiKey) {
     throw new Error("API Key not found");
@@ -136,12 +160,10 @@ export const restoreSession = async (history: Content[]): Promise<void> => {
 
   const ai = new GoogleGenAI({ apiKey });
 
-  // history needs to be strictly typed for the SDK if possible, but here we pass Content[]
-  // The SDK expects { role: string, parts: { text: string }[] }[]
   chatSession = ai.chats.create({
     model: "gemini-2.5-flash",
     config: {
-      systemInstruction: SYSTEM_INSTRUCTION,
+      systemInstruction: getSystemInstruction(lang), // Restore with correct language instruction
       responseMimeType: "application/json",
       responseSchema: responseSchema,
       temperature: 0.5,

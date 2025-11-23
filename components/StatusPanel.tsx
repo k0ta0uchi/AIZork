@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { GameState } from '../types';
+import { GameState, Language } from '../types';
 
 interface StatusPanelProps {
   gameState: GameState | null;
@@ -8,6 +8,8 @@ interface StatusPanelProps {
   onToggleImages: () => void;
   enableSound: boolean;
   onToggleSound: () => void;
+  language: Language;
+  onToggleLanguage: () => void;
   onSave: () => void;
   onLoad: () => void;
   hasSaveData: boolean;
@@ -19,6 +21,8 @@ export const StatusPanel: React.FC<StatusPanelProps> = ({
   onToggleImages,
   enableSound,
   onToggleSound,
+  language,
+  onToggleLanguage,
   onSave,
   onLoad,
   hasSaveData
@@ -42,7 +46,7 @@ export const StatusPanel: React.FC<StatusPanelProps> = ({
       </div>
       
       {/* Sound Toggle */}
-      <div className="flex items-center justify-between group cursor-pointer" onClick={onToggleSound}>
+      <div className="flex items-center justify-between group cursor-pointer mb-3" onClick={onToggleSound}>
         <span className="text-green-400 text-sm">Sound FX</span>
         <div className="relative">
           <div className={`w-10 h-5 rounded-sm border border-green-700 transition-colors ${enableSound ? 'bg-green-900/50' : 'bg-black'}`}></div>
@@ -51,6 +55,23 @@ export const StatusPanel: React.FC<StatusPanelProps> = ({
               enableSound ? 'translate-x-5 shadow-[0_0_5px_#22c55e]' : 'translate-x-0 opacity-50'
             }`}
           ></div>
+        </div>
+      </div>
+
+      {/* Language Toggle */}
+      <div className="flex items-center justify-between group cursor-pointer" onClick={onToggleLanguage}>
+        <span className="text-green-400 text-sm">Language</span>
+        <div className="flex items-center space-x-2 text-xs font-bold font-mono">
+          <span className={language === 'en' ? 'text-green-400' : 'text-green-900'}>EN</span>
+          <div className="relative">
+            <div className={`w-10 h-5 rounded-sm border border-green-700 bg-black`}></div>
+            <div 
+              className={`absolute top-0.5 left-0.5 w-4 h-4 bg-green-500 rounded-sm transition-transform duration-200 ${
+                language === 'ja' ? 'translate-x-5' : 'translate-x-0'
+              }`}
+            ></div>
+          </div>
+          <span className={language === 'ja' ? 'text-green-400' : 'text-green-900'}>JP</span>
         </div>
       </div>
     </div>
@@ -103,6 +124,9 @@ export const StatusPanel: React.FC<StatusPanelProps> = ({
     );
   }
 
+  // Helper for labels
+  const L = (ja: string, en: string) => language === 'ja' ? ja : en;
+
   return (
     <div className="hidden md:flex w-72 border-l-2 border-green-800 bg-zinc-950/90 h-full flex-col font-mono text-green-500 shrink-0">
       <div className="p-4 border-b border-green-900">
@@ -112,27 +136,27 @@ export const StatusPanel: React.FC<StatusPanelProps> = ({
       <div className="p-4 space-y-6 overflow-y-auto flex-1">
         {/* Location */}
         <div>
-          <h3 className="text-xs uppercase text-green-700 mb-1 border-b border-green-900/50 pb-1">現在地</h3>
+          <h3 className="text-xs uppercase text-green-700 mb-1 border-b border-green-900/50 pb-1">{L('現在地', 'LOCATION')}</h3>
           <p className="text-lg font-bold text-green-300 leading-tight">{gameState.locationName}</p>
         </div>
 
         {/* Stats */}
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <h3 className="text-xs uppercase text-green-700 mb-1 border-b border-green-900/50 pb-1">スコア</h3>
+            <h3 className="text-xs uppercase text-green-700 mb-1 border-b border-green-900/50 pb-1">{L('スコア', 'SCORE')}</h3>
             <p className="text-2xl font-bold text-green-300">{gameState.score}</p>
           </div>
           <div>
-            <h3 className="text-xs uppercase text-green-700 mb-1 border-b border-green-900/50 pb-1">ターン</h3>
+            <h3 className="text-xs uppercase text-green-700 mb-1 border-b border-green-900/50 pb-1">{L('ターン', 'MOVES')}</h3>
             <p className="text-2xl font-bold text-green-300">{gameState.moves}</p>
           </div>
         </div>
 
         {/* Inventory */}
         <div>
-          <h3 className="text-xs uppercase text-green-700 mb-2 border-b border-green-900/50 pb-1">持ち物 (Inventory)</h3>
+          <h3 className="text-xs uppercase text-green-700 mb-2 border-b border-green-900/50 pb-1">{L('持ち物 (Inventory)', 'INVENTORY')}</h3>
           {gameState.inventory.length === 0 ? (
-            <p className="text-green-800 italic text-sm">なし</p>
+            <p className="text-green-800 italic text-sm">{L('なし', 'Empty')}</p>
           ) : (
             <ul className="space-y-2">
               {gameState.inventory.map((item, idx) => (

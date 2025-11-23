@@ -43,4 +43,7 @@ export interface SavedGame {
   displayHistory: ChatMessage[];
   sessionHistory: Content[];
   timestamp: number;
+  language: Language;
 }
+
+export type Language = 'ja' | 'en';
