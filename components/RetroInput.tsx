@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 
 export interface Suggestion {
@@ -23,6 +22,8 @@ export const RetroInput: React.FC<RetroInputProps> = ({
   placeholder = "コマンドを入力..."
 }) => {
   const [input, setInput] = useState('');
+  const [commandHistory, setCommandHistory] = useState<string[]>([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -35,6 +36,8 @@ export const RetroInput: React.FC<RetroInputProps> = ({
     e.preventDefault();
     if (input.trim()) {
       onSend(input);
+      setCommandHistory(prev => [...prev, input]);
+      setHistoryIndex(-1);
       setInput('');
     }
   };
@@ -42,10 +45,40 @@ export const RetroInput: React.FC<RetroInputProps> = ({
   const handleSuggestionClick = (suggestion: Suggestion) => {
     if (suggestion.autoSubmit) {
       onSend(suggestion.command);
+      setCommandHistory(prev => [...prev, suggestion.command]);
+      setHistoryIndex(-1);
       setInput('');
     } else {
       setInput(suggestion.command + ' ');
       inputRef.current?.focus();
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (disabled) return;
+
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (commandHistory.length === 0) return;
+
+      const newIndex = historyIndex === -1 
+        ? commandHistory.length - 1 
+        : Math.max(0, historyIndex - 1);
+      
+      setHistoryIndex(newIndex);
+      setInput(commandHistory[newIndex]);
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (historyIndex === -1) return;
+
+      if (historyIndex < commandHistory.length - 1) {
+        const newIndex = historyIndex + 1;
+        setHistoryIndex(newIndex);
+        setInput(commandHistory[newIndex]);
+      } else {
+        setHistoryIndex(-1);
+        setInput('');
+      }
     }
   };
 
@@ -74,8 +107,9 @@ export const RetroInput: React.FC<RetroInputProps> = ({
           type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}
+          onKeyDown={handleKeyDown}
           disabled={disabled}
-          className="flex-1 bg-transparent border-none outline-none text-green-400 font-mono text-lg placeholder-green-900/50"
+          className="flex-1 bg-transparent border-none outline-none text-green-400 font-mono text-lg placeholder-green-800"
           placeholder={disabled ? "..." : placeholder}
           autoComplete="off"
         />

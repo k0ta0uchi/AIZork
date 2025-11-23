@@ -86,14 +86,14 @@ export const StatusPanel: React.FC<StatusPanelProps> = ({
           disabled={!gameState}
           className="bg-green-900/20 border border-green-800 hover:bg-green-800/30 text-green-400 text-xs py-1 px-2 rounded-sm transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
         >
-          SAVE
+          SAVE...
         </button>
         <button 
           onClick={onLoad}
           disabled={!hasSaveData}
           className="bg-green-900/20 border border-green-800 hover:bg-green-800/30 text-green-400 text-xs py-1 px-2 rounded-sm transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
         >
-          LOAD
+          LOAD...
         </button>
       </div>
       {hasSaveData && (

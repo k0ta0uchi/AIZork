@@ -6,8 +6,10 @@ import { GameState, ChatMessage, GameStatus, ResponseCategory, Content, SavedGam
 import { RetroInput, Suggestion } from './components/RetroInput';
 import { StatusPanel } from './components/StatusPanel';
 import { GameLog } from './components/GameLog';
+import { SaveLoadModal } from './components/SaveLoadModal';
 
-const SAVE_KEY = 'zork_save_v1';
+const SAVE_KEY_PREFIX = 'zork_save_slot_';
+const MAX_SLOTS = 5;
 
 // UI Text Dictionary
 const UI_TEXT = {
@@ -16,7 +18,7 @@ const UI_TEXT = {
     connecting: "接続中... 物語を生成しています...",
     connectError: "ゲームの初期化に失敗しました。APIキーを確認してください。",
     commError: "通信エラーが発生しました。もう一度試してください。",
-    saveSuccess: "ゲームデータを保存しました",
+    saveSuccess: "ゲームデータをスロットに保存しました",
     saveFail: "セーブに失敗しました。データ容量が上限を超えています。",
     loadFail: "セーブデータの読み込みに失敗しました",
     titleSub: "AIによってリアルタイムに翻訳・実行される\n伝説のテキストアドベンチャー (日本語版)",
@@ -27,6 +29,7 @@ const UI_TEXT = {
     gameOver: "*** GAME OVER ***",
     restartButton: "RESTART",
     placeholder: "コマンドを入力...",
+    hintPrefix: "例: ",
     defaultSuggestions: [
       { label: '周りを見る', command: '周りを見る' },
       { label: '北へ', command: '北へ移動' },
@@ -39,7 +42,7 @@ const UI_TEXT = {
     connecting: "Connecting... Generating story...",
     connectError: "Failed to initialize game. Please check your API Key.",
     commError: "Communication error. Please try again.",
-    saveSuccess: "Game saved successfully.",
+    saveSuccess: "Game saved to slot.",
     saveFail: "Save failed. Storage limit exceeded.",
     loadFail: "Failed to load save data.",
     titleSub: "The legendary text adventure, simulated by AI\nin real-time.",
@@ -50,6 +53,7 @@ const UI_TEXT = {
     gameOver: "*** GAME OVER ***",
     restartButton: "RESTART",
     placeholder: "Enter command...",
+    hintPrefix: "Try: ",
     defaultSuggestions: [
       { label: 'Look', command: 'Look' },
       { label: 'North', command: 'North' },
@@ -72,6 +76,11 @@ const App: React.FC = () => {
   const [enableSound, setEnableSound] = useState<boolean>(true);
   const [hasSaveData, setHasSaveData] = useState<boolean>(false);
 
+  // Save/Load Modal State
+  const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
+  const [isLoadModalOpen, setIsLoadModalOpen] = useState(false);
+  const [saveSlots, setSaveSlots] = useState<(SavedGame | null)[]>([]);
+
   // Initialize history with correct language on mount or lang change if idle
   useEffect(() => {
     if (status === GameStatus.IDLE) {
@@ -84,14 +93,34 @@ const App: React.FC = () => {
     }
   }, [language, status]);
 
+  // Check for any save data on mount
   useEffect(() => {
-    const saved = localStorage.getItem(SAVE_KEY);
-    setHasSaveData(!!saved);
+    checkSaveData();
   }, []);
 
   useEffect(() => {
     setMute(!enableSound);
   }, [enableSound]);
+
+  const checkSaveData = () => {
+    let found = false;
+    for (let i = 0; i < MAX_SLOTS; i++) {
+      if (localStorage.getItem(`${SAVE_KEY_PREFIX}${i}`)) {
+        found = true;
+        break;
+      }
+    }
+    setHasSaveData(found);
+  };
+
+  const loadSlotsData = () => {
+    const slots: (SavedGame | null)[] = [];
+    for (let i = 0; i < MAX_SLOTS; i++) {
+      const data = localStorage.getItem(`${SAVE_KEY_PREFIX}${i}`);
+      slots.push(data ? JSON.parse(data) : null);
+    }
+    setSaveSlots(slots);
+  };
 
   const handleToggleLanguage = async () => {
     const newLang = language === 'ja' ? 'en' : 'ja';
@@ -201,9 +230,20 @@ const App: React.FC = () => {
     }
   };
 
-  const handleSave = () => {
-    if (!gameState) return;
+  const openSaveModal = () => {
     playInputSound();
+    loadSlotsData();
+    setIsSaveModalOpen(true);
+  };
+
+  const openLoadModal = () => {
+    playInputSound();
+    loadSlotsData();
+    setIsLoadModalOpen(true);
+  };
+
+  const executeSave = (slotIndex: number) => {
+    if (!gameState) return;
     
     const sanitizedHistory = history.map(msg => ({
       ...msg,
@@ -220,8 +260,9 @@ const App: React.FC = () => {
     };
 
     try {
-      localStorage.setItem(SAVE_KEY, JSON.stringify(saveData));
-      setHasSaveData(true);
+      localStorage.setItem(`${SAVE_KEY_PREFIX}${slotIndex}`, JSON.stringify(saveData));
+      checkSaveData();
+      setIsSaveModalOpen(false);
       alert(T.saveSuccess);
     } catch (e) {
       console.error("Save failed", e);
@@ -229,12 +270,12 @@ const App: React.FC = () => {
     }
   };
 
-  const handleLoad = async () => {
-    const saved = localStorage.getItem(SAVE_KEY);
+  const executeLoad = async (slotIndex: number) => {
+    const saved = localStorage.getItem(`${SAVE_KEY_PREFIX}${slotIndex}`);
     if (!saved) return;
-    playInputSound();
-
+    
     try {
+      setIsLoadModalOpen(false);
       setStatus(GameStatus.LOADING);
       const saveData: SavedGame = JSON.parse(saved);
       
@@ -259,18 +300,15 @@ const App: React.FC = () => {
   const handleReset = () => {
     playInputSound();
     setStatus(GameStatus.IDLE);
-    // History will be reset by useEffect depending on current language
     setGameState(null);
     setErrorMsg(null);
     setSessionHistory([]);
   };
 
   const getSuggestions = (): Suggestion[] => {
-    // If we have AI suggestions, filter/map them
     if (gameState?.suggestions && gameState.suggestions.length > 0) {
       return gameState.suggestions.map(s => {
         const isMovement = /^(North|South|East|West|Up|Down|NE|NW|SE|SW|北|南|東|西|上|下|北東|北西|南東|南西)(へ移動)?$/i.test(s.replace(/\s/g, ''));
-        // Basic check for non-action verbs to auto-submit
         const isBasic = /^(Look|Inventory|Status|Wait|周りを見る|持ち物|ステータス|待機)/i.test(s);
         
         return {
@@ -280,9 +318,18 @@ const App: React.FC = () => {
         };
       });
     }
-
-    // Fallback default suggestions
     return T.defaultSuggestions.map(s => ({ ...s, autoSubmit: true }));
+  };
+
+  // Determine dynamic placeholder text
+  const getDynamicPlaceholder = () => {
+    if (status !== GameStatus.PLAYING && status !== GameStatus.GAME_OVER) return T.placeholder;
+    
+    if (gameState?.suggestions && gameState.suggestions.length > 0) {
+      return `${T.hintPrefix}${gameState.suggestions[0]} ...`;
+    }
+    
+    return T.placeholder;
   };
 
   return (
@@ -316,7 +363,7 @@ const App: React.FC = () => {
                   </button>
                   {hasSaveData && (
                     <button 
-                      onClick={handleLoad}
+                      onClick={openLoadModal}
                       className="px-8 py-2 bg-zinc-800 hover:bg-zinc-700 text-green-400 font-bold rounded border border-green-800 transition-colors font-mono text-lg"
                     >
                       {T.loadButton}
@@ -354,7 +401,7 @@ const App: React.FC = () => {
                onSend={handleCommand} 
                disabled={status === GameStatus.LOADING}
                suggestions={getSuggestions()}
-               placeholder={T.placeholder}
+               placeholder={getDynamicPlaceholder()}
              />
           )}
         </div>
@@ -369,9 +416,25 @@ const App: React.FC = () => {
         onToggleSound={() => setEnableSound(!enableSound)}
         language={language}
         onToggleLanguage={handleToggleLanguage}
-        onSave={handleSave}
-        onLoad={handleLoad}
+        onSave={openSaveModal}
+        onLoad={openLoadModal}
         hasSaveData={hasSaveData}
+      />
+
+      {/* Save/Load Modal */}
+      <SaveLoadModal
+        isOpen={isSaveModalOpen}
+        mode="save"
+        onClose={() => setIsSaveModalOpen(false)}
+        onAction={executeSave}
+        slots={saveSlots}
+      />
+      <SaveLoadModal
+        isOpen={isLoadModalOpen}
+        mode="load"
+        onClose={() => setIsLoadModalOpen(false)}
+        onAction={executeLoad}
+        slots={saveSlots}
       />
     </div>
   );
