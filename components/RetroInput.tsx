@@ -109,9 +109,9 @@ export const RetroInput: React.FC<RetroInputProps> = ({
       )}
 
       {/* Main Input Field */}
-      <div className="relative flex items-center bg-black border border-green-800/50 p-3 shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)]">
-        <span className={`text-green-500 font-bold mr-3 animate-pulse ${fontSize === 'large' ? 'text-2xl' : 'text-xl'}`}>{'>'}</span>
-        <form onSubmit={handleSubmit} className="flex-1">
+      <div className="relative flex items-center bg-black border border-green-800/50 p-2 shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)]">
+        <span className={`text-green-500 font-bold mr-3 animate-pulse ${getTextSizeClass()}`}>{'>'}</span>
+        <form onSubmit={handleSubmit} className="flex-1 flex items-center">
           <input
             ref={inputRef}
             type="text"
@@ -125,8 +125,6 @@ export const RetroInput: React.FC<RetroInputProps> = ({
             spellCheck="false"
           />
         </form>
-        {/* Blinking Cursor Block (Visual flair) */}
-        {!disabled && <div className="w-2 h-5 bg-green-500 opacity-50 animate-blink ml-1 hidden md:block pointer-events-none"></div>}
       </div>
     </div>
   );
