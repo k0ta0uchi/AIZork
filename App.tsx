@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { initializeGame, sendCommand, generateSceneImage, restoreSession, switchSessionLanguage } from './services/geminiService';
 import { playInputSound, playResponseSound, playImportantSound, playGameOverSound, setMute, playBGM, stopBGM, setBgmMute } from './services/audioService';
-import { GameState, ChatMessage, GameStatus, ResponseCategory, Content, SavedGame, Language, BGMMood, GameVersion, Coordinates } from './types';
+import { GameState, ChatMessage, GameStatus, ResponseCategory, Content, SavedGame, Language, BGMMood, GameVersion, Coordinates, FontSize } from './types';
 import { RetroInput, Suggestion } from './components/RetroInput';
 import { StatusPanel } from './components/StatusPanel';
 import { GameLog } from './components/GameLog';
@@ -82,6 +82,7 @@ const App: React.FC = () => {
   const [enableSound, setEnableSound] = useState<boolean>(true);
   const [enableMusic, setEnableMusic] = useState<boolean>(true);
   const [enableCRT, setEnableCRT] = useState<boolean>(true);
+  const [fontSize, setFontSize] = useState<FontSize>('medium');
   
   const [hasSaveData, setHasSaveData] = useState<boolean>(false);
 
@@ -430,120 +431,127 @@ const App: React.FC = () => {
         </div>
       </div>
 
-      <div className="flex flex-1 flex-col relative w-full h-full pt-12 md:pt-0 z-10 p-2 md:p-6 md:pr-0">
-        {/* Main Monitor Container */}
-        <div className={`flex-1 flex flex-col min-h-0 relative border-2 border-green-900/60 bg-black/80 rounded-sm shadow-[0_0_15px_rgba(20,83,45,0.3)_inset] overflow-hidden ${enableCRT ? 'retro-border' : ''}`}>
+      {/* Main Layout Container - Centered for wide screens */}
+      <div className="flex flex-1 flex-col relative w-full h-full pt-12 md:pt-0 z-10 p-2 md:p-6 md:pr-0 items-center">
+        
+        {/* Max Width Limiter for Ultra-Wide Screens */}
+        <div className="w-full max-w-5xl h-full flex flex-col">
           
-          {/* Start Screen Overlay */}
-          {status === GameStatus.IDLE && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black z-30 overflow-y-auto">
-               {/* Grid Background in Modal */}
-               <div className="absolute inset-0 opacity-20 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle, #15803d 1px, transparent 1px)', backgroundSize: '30px 30px' }}></div>
+          {/* Main Monitor Container */}
+          <div className={`flex-1 flex flex-col min-h-0 relative border-2 border-green-900/60 bg-black/80 rounded-sm shadow-[0_0_15px_rgba(20,83,45,0.3)_inset] overflow-hidden ${enableCRT ? 'retro-border' : ''}`}>
+            
+            {/* Start Screen Overlay */}
+            {status === GameStatus.IDLE && (
+              <div className="absolute inset-0 flex items-center justify-center bg-black z-30 overflow-y-auto">
+                 {/* Grid Background in Modal */}
+                 <div className="absolute inset-0 opacity-20 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle, #15803d 1px, transparent 1px)', backgroundSize: '30px 30px' }}></div>
 
-              <div className="relative text-center w-full max-w-4xl p-4">
-                <div className="mb-12 border-b-2 border-green-800 pb-8">
-                  <h1 className={`text-8xl md:text-9xl font-bold text-green-500 tracking-tighter font-['VT323'] filter drop-shadow-[0_0_10px_rgba(34,197,94,0.6)] ${enableCRT ? 'animate-crt' : ''}`}>ZORK</h1>
-                  <h2 className="text-2xl text-green-700 tracking-[0.5em] uppercase mt-2">Interactive Fiction Saga</h2>
-                </div>
-                
-                <p className="text-green-400 font-mono text-base mb-10 opacity-80 max-w-xl mx-auto border-l-2 border-green-900 pl-4 text-left">
-                  {T.titleSub}
-                </p>
-                
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto px-4">
-                  {/* Zork I */}
-                  <button 
-                    onClick={() => handleStart(GameVersion.ZORK1)}
-                    className="group relative h-40 border-2 border-green-900 bg-green-950/20 hover:bg-green-900/30 hover:border-green-500 transition-all duration-300 flex flex-col items-center justify-center p-4 overflow-hidden"
-                  >
-                    <div className="absolute inset-0 opacity-0 group-hover:opacity-10 bg-[linear-gradient(45deg,transparent_25%,rgba(34,197,94,0.2)_50%,transparent_75%)] bg-[length:250%_250%] animate-pulse"></div>
-                    <span className="text-4xl font-bold text-green-300 mb-2 group-hover:text-green-100 group-hover:scale-110 transition-transform">I</span>
-                    <span className="text-sm font-bold uppercase tracking-wider text-green-500">The Great<br/>Underground Empire</span>
-                  </button>
-
-                  {/* Zork II */}
-                  <button 
-                    onClick={() => handleStart(GameVersion.ZORK2)}
-                    className="group relative h-40 border-2 border-green-900 bg-green-950/20 hover:bg-green-900/30 hover:border-green-500 transition-all duration-300 flex flex-col items-center justify-center p-4 overflow-hidden"
-                  >
-                     <div className="absolute inset-0 opacity-0 group-hover:opacity-10 bg-[linear-gradient(45deg,transparent_25%,rgba(34,197,94,0.2)_50%,transparent_75%)] bg-[length:250%_250%] animate-pulse"></div>
-                    <span className="text-4xl font-bold text-green-300 mb-2 group-hover:text-green-100 group-hover:scale-110 transition-transform">II</span>
-                    <span className="text-sm font-bold uppercase tracking-wider text-green-500">The Wizard<br/>of Frobozz</span>
-                  </button>
-
-                  {/* Zork III */}
-                  <button 
-                    onClick={() => handleStart(GameVersion.ZORK3)}
-                    className="group relative h-40 border-2 border-green-900 bg-green-950/20 hover:bg-green-900/30 hover:border-green-500 transition-all duration-300 flex flex-col items-center justify-center p-4 overflow-hidden"
-                  >
-                     <div className="absolute inset-0 opacity-0 group-hover:opacity-10 bg-[linear-gradient(45deg,transparent_25%,rgba(34,197,94,0.2)_50%,transparent_75%)] bg-[length:250%_250%] animate-pulse"></div>
-                    <span className="text-4xl font-bold text-green-300 mb-2 group-hover:text-green-100 group-hover:scale-110 transition-transform">III</span>
-                    <span className="text-sm font-bold uppercase tracking-wider text-green-500">The Dungeon<br/>Master</span>
-                  </button>
-                </div>
-
-                <div className="mt-8 flex flex-col md:flex-row gap-4 justify-center items-center">
-                  {/* Remix Button */}
-                   <button 
-                    onClick={() => handleStart(GameVersion.ZORK_REMIX)}
-                    className="w-full md:w-auto px-8 py-3 border border-purple-900 bg-purple-950/10 hover:bg-purple-900/30 hover:border-purple-500 text-purple-400 hover:text-purple-200 font-bold transition-all uppercase tracking-[0.2em] shadow-[0_0_15px_rgba(147,51,234,0.1)] relative overflow-hidden group"
-                  >
-                    <span className="relative z-10">Zork Remix</span>
-                    <div className="absolute inset-0 bg-purple-500/10 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
-                  </button>
-
-                  {hasSaveData && (
-                     <button 
-                      onClick={openLoadModal}
-                      className="w-full md:w-auto px-8 py-3 border border-zinc-700 bg-zinc-900/50 hover:bg-zinc-800 text-green-400/80 font-bold transition-all uppercase tracking-widest"
+                <div className="relative text-center w-full max-w-4xl p-4">
+                  <div className="mb-12 border-b-2 border-green-800 pb-8">
+                    <h1 className={`text-8xl md:text-9xl font-bold text-green-500 tracking-tighter font-['VT323'] filter drop-shadow-[0_0_10px_rgba(34,197,94,0.6)] ${enableCRT ? 'animate-crt' : ''}`}>ZORK</h1>
+                    <h2 className="text-2xl text-green-700 tracking-[0.5em] uppercase mt-2">Interactive Fiction Saga</h2>
+                  </div>
+                  
+                  <p className="text-green-400 font-mono text-base mb-10 opacity-80 max-w-xl mx-auto border-l-2 border-green-900 pl-4 text-left">
+                    {T.titleSub}
+                  </p>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto px-4">
+                    {/* Zork I */}
+                    <button 
+                      onClick={() => handleStart(GameVersion.ZORK1)}
+                      className="group relative h-40 border-2 border-green-900 bg-green-950/20 hover:bg-green-900/30 hover:border-green-500 transition-all duration-300 flex flex-col items-center justify-center p-4 overflow-hidden"
                     >
-                      {T.loadButton}
+                      <div className="absolute inset-0 opacity-0 group-hover:opacity-10 bg-[linear-gradient(45deg,transparent_25%,rgba(34,197,94,0.2)_50%,transparent_75%)] bg-[length:250%_250%] animate-pulse"></div>
+                      <span className="text-4xl font-bold text-green-300 mb-2 group-hover:text-green-100 group-hover:scale-110 transition-transform">I</span>
+                      <span className="text-sm font-bold uppercase tracking-wider text-green-500">The Great<br/>Underground Empire</span>
                     </button>
-                  )}
-                </div>
-                
-                <div className="mt-16 text-xs text-green-900 font-mono tracking-widest">
-                  COPYRIGHT (C) 2025 AI INTERACTIVE FICTION SYSTEMS
+
+                    {/* Zork II */}
+                    <button 
+                      onClick={() => handleStart(GameVersion.ZORK2)}
+                      className="group relative h-40 border-2 border-green-900 bg-green-950/20 hover:bg-green-900/30 hover:border-green-500 transition-all duration-300 flex flex-col items-center justify-center p-4 overflow-hidden"
+                    >
+                       <div className="absolute inset-0 opacity-0 group-hover:opacity-10 bg-[linear-gradient(45deg,transparent_25%,rgba(34,197,94,0.2)_50%,transparent_75%)] bg-[length:250%_250%] animate-pulse"></div>
+                      <span className="text-4xl font-bold text-green-300 mb-2 group-hover:text-green-100 group-hover:scale-110 transition-transform">II</span>
+                      <span className="text-sm font-bold uppercase tracking-wider text-green-500">The Wizard<br/>of Frobozz</span>
+                    </button>
+
+                    {/* Zork III */}
+                    <button 
+                      onClick={() => handleStart(GameVersion.ZORK3)}
+                      className="group relative h-40 border-2 border-green-900 bg-green-950/20 hover:bg-green-900/30 hover:border-green-500 transition-all duration-300 flex flex-col items-center justify-center p-4 overflow-hidden"
+                    >
+                       <div className="absolute inset-0 opacity-0 group-hover:opacity-10 bg-[linear-gradient(45deg,transparent_25%,rgba(34,197,94,0.2)_50%,transparent_75%)] bg-[length:250%_250%] animate-pulse"></div>
+                      <span className="text-4xl font-bold text-green-300 mb-2 group-hover:text-green-100 group-hover:scale-110 transition-transform">III</span>
+                      <span className="text-sm font-bold uppercase tracking-wider text-green-500">The Dungeon<br/>Master</span>
+                    </button>
+                  </div>
+
+                  <div className="mt-8 flex flex-col md:flex-row gap-4 justify-center items-center">
+                    {/* Remix Button */}
+                     <button 
+                      onClick={() => handleStart(GameVersion.ZORK_REMIX)}
+                      className="w-full md:w-auto px-8 py-3 border border-purple-900 bg-purple-950/10 hover:bg-purple-900/30 hover:border-purple-500 text-purple-400 hover:text-purple-200 font-bold transition-all uppercase tracking-[0.2em] shadow-[0_0_15px_rgba(147,51,234,0.1)] relative overflow-hidden group"
+                    >
+                      <span className="relative z-10">Zork Remix</span>
+                      <div className="absolute inset-0 bg-purple-500/10 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
+                    </button>
+
+                    {hasSaveData && (
+                       <button 
+                        onClick={openLoadModal}
+                        className="w-full md:w-auto px-8 py-3 border border-zinc-700 bg-zinc-900/50 hover:bg-zinc-800 text-green-400/80 font-bold transition-all uppercase tracking-widest"
+                      >
+                        {T.loadButton}
+                      </button>
+                    )}
+                  </div>
+                  
+                  <div className="mt-16 text-xs text-green-900 font-mono tracking-widest">
+                    COPYRIGHT (C) 2025 AI INTERACTIVE FICTION SYSTEMS
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Error Screen */}
-          {status === GameStatus.ERROR && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black/90 z-50">
-              <div className="text-center p-8 border-2 border-red-800 bg-black shadow-[0_0_50px_rgba(220,38,38,0.3)] max-w-lg">
-                <h3 className="text-3xl font-bold mb-6 text-red-500 tracking-widest border-b border-red-900 pb-2">{T.errorTitle}</h3>
-                <p className="text-red-400 font-mono mb-8">{errorMsg}</p>
-                <button onClick={handleReset} className="px-6 py-2 border border-red-600 text-red-500 hover:bg-red-900/30 hover:text-red-300 transition-colors uppercase tracking-widest">
-                  {T.retryButton}
-                </button>
+            {/* Error Screen */}
+            {status === GameStatus.ERROR && (
+              <div className="absolute inset-0 flex items-center justify-center bg-black/90 z-50">
+                <div className="text-center p-8 border-2 border-red-800 bg-black shadow-[0_0_50px_rgba(220,38,38,0.3)] max-w-lg">
+                  <h3 className="text-3xl font-bold mb-6 text-red-500 tracking-widest border-b border-red-900 pb-2">{T.errorTitle}</h3>
+                  <p className="text-red-400 font-mono mb-8">{errorMsg}</p>
+                  <button onClick={handleReset} className="px-6 py-2 border border-red-600 text-red-500 hover:bg-red-900/30 hover:text-red-300 transition-colors uppercase tracking-widest">
+                    {T.retryButton}
+                  </button>
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Game Output */}
-          <GameLog history={history} isTyping={status === GameStatus.LOADING} />
+            {/* Game Output */}
+            <GameLog history={history} isTyping={status === GameStatus.LOADING} fontSize={fontSize} />
 
-          {/* Game Over Panel */}
-          {status === GameStatus.GAME_OVER && (
-             <div className="p-6 bg-zinc-950 border-t-2 border-red-900 text-center shadow-[0_-10px_30px_rgba(0,0,0,0.8)] relative z-20">
-                <p className="text-red-500 font-bold mb-4 text-2xl tracking-[0.5em] animate-pulse">{T.gameOver}</p>
-                <button onClick={handleReset} className="px-8 py-2 border border-red-700 text-red-500 hover:bg-red-900/20 hover:text-red-300 transition-colors font-mono tracking-widest">
-                  {T.restartButton}
-                </button>
-             </div>
-          )}
+            {/* Game Over Panel */}
+            {status === GameStatus.GAME_OVER && (
+               <div className="p-6 bg-zinc-950 border-t-2 border-red-900 text-center shadow-[0_-10px_30px_rgba(0,0,0,0.8)] relative z-20">
+                  <p className="text-red-500 font-bold mb-4 text-2xl tracking-[0.5em] animate-pulse">{T.gameOver}</p>
+                  <button onClick={handleReset} className="px-8 py-2 border border-red-700 text-red-500 hover:bg-red-900/20 hover:text-red-300 transition-colors font-mono tracking-widest">
+                    {T.restartButton}
+                  </button>
+               </div>
+            )}
 
-          {/* Input Area */}
-          {status !== GameStatus.IDLE && status !== GameStatus.GAME_OVER && status !== GameStatus.ERROR && (
-             <RetroInput 
-               onSend={handleCommand} 
-               disabled={status === GameStatus.LOADING}
-               suggestions={getSuggestions()}
-               placeholder={getDynamicPlaceholder()}
-             />
-          )}
+            {/* Input Area */}
+            {status !== GameStatus.IDLE && status !== GameStatus.GAME_OVER && status !== GameStatus.ERROR && (
+               <RetroInput 
+                 onSend={handleCommand} 
+                 disabled={status === GameStatus.LOADING}
+                 suggestions={getSuggestions()}
+                 placeholder={getDynamicPlaceholder()}
+                 fontSize={fontSize}
+               />
+            )}
+          </div>
         </div>
       </div>
 
@@ -560,6 +568,8 @@ const App: React.FC = () => {
         onToggleCRT={() => setEnableCRT(!enableCRT)}
         language={language}
         onToggleLanguage={handleToggleLanguage}
+        fontSize={fontSize}
+        onChangeFontSize={setFontSize}
         onSave={openSaveModal}
         onLoad={openLoadModal}
         hasSaveData={hasSaveData}

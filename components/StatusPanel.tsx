@@ -1,5 +1,6 @@
+
 import React from 'react';
-import { GameState, Language } from '../types';
+import { GameState, Language, FontSize } from '../types';
 
 interface StatusPanelProps {
   gameState: GameState | null;
@@ -13,6 +14,8 @@ interface StatusPanelProps {
   onToggleCRT: () => void;
   language: Language;
   onToggleLanguage: () => void;
+  fontSize: FontSize;
+  onChangeFontSize: (size: FontSize) => void;
   onSave: () => void;
   onLoad: () => void;
   hasSaveData: boolean;
@@ -56,6 +59,8 @@ export const StatusPanel: React.FC<StatusPanelProps> = ({
   onToggleCRT,
   language,
   onToggleLanguage,
+  fontSize,
+  onChangeFontSize,
   onSave,
   onLoad,
   hasSaveData,
@@ -73,6 +78,26 @@ export const StatusPanel: React.FC<StatusPanelProps> = ({
       <div className="flex bg-black border border-green-800 rounded-sm overflow-hidden">
         <div className={`px-2 py-1 text-[9px] font-bold transition-colors ${language === 'en' ? 'bg-green-900 text-green-100' : 'text-green-800'}`}>EN</div>
         <div className={`px-2 py-1 text-[9px] font-bold transition-colors ${language === 'ja' ? 'bg-green-900 text-green-100' : 'text-green-800'}`}>JP</div>
+      </div>
+    </div>
+  );
+
+  const FontSizeSwitch = () => (
+    <div className="flex items-center justify-between mb-2 group">
+      <span className="text-green-500/80 text-xs font-mono group-hover:text-green-300 transition-colors">FONT SIZE</span>
+      <div className="flex bg-black border border-green-800 rounded-sm overflow-hidden">
+        <button 
+          onClick={() => onChangeFontSize('small')}
+          className={`px-2 py-1 text-[9px] font-bold transition-colors ${fontSize === 'small' ? 'bg-green-900 text-green-100' : 'text-green-800 hover:bg-green-900/20'}`}
+        >S</button>
+        <button 
+          onClick={() => onChangeFontSize('medium')}
+          className={`px-2 py-1 text-[9px] font-bold transition-colors border-l border-r border-green-900/50 ${fontSize === 'medium' ? 'bg-green-900 text-green-100' : 'text-green-800 hover:bg-green-900/20'}`}
+        >M</button>
+        <button 
+          onClick={() => onChangeFontSize('large')}
+          className={`px-2 py-1 text-[9px] font-bold transition-colors ${fontSize === 'large' ? 'bg-green-900 text-green-100' : 'text-green-800 hover:bg-green-900/20'}`}
+        >L</button>
       </div>
     </div>
   );
@@ -103,6 +128,7 @@ export const StatusPanel: React.FC<StatusPanelProps> = ({
                 <ToggleSwitch label="MUSIC (BGM)" active={enableMusic} onClick={onToggleMusic} />
                 <ToggleSwitch label="CRT EFFECT" active={enableCRT} onClick={onToggleCRT} />
                 <LangSwitch />
+                <FontSizeSwitch />
              </PanelSection>
              <PanelSection title="Data Mgmt">
                <div className="grid grid-cols-2 gap-2">
@@ -192,6 +218,7 @@ export const StatusPanel: React.FC<StatusPanelProps> = ({
              <ToggleSwitch label="MUSIC" active={enableMusic} onClick={onToggleMusic} />
              <ToggleSwitch label="CRT EFFECT" active={enableCRT} onClick={onToggleCRT} />
              <LangSwitch />
+             <FontSizeSwitch />
           </PanelSection>
 
           {/* System Module */}

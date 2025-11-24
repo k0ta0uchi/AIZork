@@ -1,20 +1,33 @@
+
 import React, { useEffect, useRef } from 'react';
-import { ChatMessage } from '../types';
+import { ChatMessage, FontSize } from '../types';
 
 interface GameLogProps {
   history: ChatMessage[];
   isTyping: boolean;
+  fontSize: FontSize;
 }
 
-export const GameLog: React.FC<GameLogProps> = ({ history, isTyping }) => {
+export const GameLog: React.FC<GameLogProps> = ({ history, isTyping, fontSize }) => {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [history, isTyping]);
 
+  const getTextSizeClass = () => {
+    switch (fontSize) {
+      case 'small': return 'text-base md:text-base';
+      case 'large': return 'text-xl md:text-2xl';
+      case 'medium':
+      default: return 'text-lg md:text-xl';
+    }
+  };
+
+  const textClass = `font-mono leading-relaxed ${getTextSizeClass()}`;
+
   return (
-    <div className="flex-1 overflow-y-auto p-4 md:p-8 font-mono text-lg leading-relaxed space-y-8 scroll-smooth">
+    <div className={`flex-1 overflow-y-auto p-4 md:p-8 space-y-8 scroll-smooth ${textClass}`}>
       {history.map((msg, idx) => (
         <div key={msg.id || idx} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
           

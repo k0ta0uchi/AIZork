@@ -76,3 +76,5 @@ export interface SavedGame {
 }
 
 export type Language = 'ja' | 'en';
+
+export type FontSize = 'small' | 'medium' | 'large';

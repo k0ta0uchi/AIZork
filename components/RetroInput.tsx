@@ -1,4 +1,6 @@
+
 import React, { useState, useRef, useEffect } from 'react';
+import { FontSize } from '../types';
 
 export interface Suggestion {
   label: string;
@@ -12,6 +14,7 @@ interface RetroInputProps {
   autoFocus?: boolean;
   suggestions?: Suggestion[];
   placeholder?: string;
+  fontSize: FontSize;
 }
 
 export const RetroInput: React.FC<RetroInputProps> = ({ 
@@ -19,7 +22,8 @@ export const RetroInput: React.FC<RetroInputProps> = ({
   disabled, 
   autoFocus = true,
   suggestions = [],
-  placeholder = "コマンドを入力..."
+  placeholder = "コマンドを入力...",
+  fontSize
 }) => {
   const [input, setInput] = useState('');
   const [commandHistory, setCommandHistory] = useState<string[]>([]);
@@ -77,6 +81,15 @@ export const RetroInput: React.FC<RetroInputProps> = ({
     }
   };
 
+  const getTextSizeClass = () => {
+    switch (fontSize) {
+      case 'small': return 'text-base';
+      case 'large': return 'text-xl';
+      case 'medium':
+      default: return 'text-lg';
+    }
+  };
+
   return (
     <div className="w-full bg-zinc-950 border-t-2 border-green-900/60 p-2 shadow-[0_-5px_15px_rgba(0,0,0,0.5)] z-30">
       
@@ -97,7 +110,7 @@ export const RetroInput: React.FC<RetroInputProps> = ({
 
       {/* Main Input Field */}
       <div className="relative flex items-center bg-black border border-green-800/50 p-3 shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)]">
-        <span className="text-green-500 font-bold text-xl mr-3 animate-pulse">{'>'}</span>
+        <span className={`text-green-500 font-bold mr-3 animate-pulse ${fontSize === 'large' ? 'text-2xl' : 'text-xl'}`}>{'>'}</span>
         <form onSubmit={handleSubmit} className="flex-1">
           <input
             ref={inputRef}
@@ -106,7 +119,7 @@ export const RetroInput: React.FC<RetroInputProps> = ({
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             disabled={disabled}
-            className="w-full bg-transparent border-none outline-none text-green-400 font-mono text-lg placeholder-green-900 caret-green-500"
+            className={`w-full bg-transparent border-none outline-none text-green-400 font-mono placeholder-green-900 caret-green-500 ${getTextSizeClass()}`}
             placeholder={disabled ? "PROCESSING..." : placeholder}
             autoComplete="off"
             spellCheck="false"
