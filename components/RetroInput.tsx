@@ -109,22 +109,29 @@ export const RetroInput: React.FC<RetroInputProps> = ({
       )}
 
       {/* Main Input Field */}
-      <div className="relative flex items-center bg-black border border-green-800/50 p-2 shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)]">
-        <span className={`text-green-500 font-bold mr-3 animate-pulse ${getTextSizeClass()}`}>{'>'}</span>
-        <form onSubmit={handleSubmit} className="flex-1 flex items-center">
-          <input
-            ref={inputRef}
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            disabled={disabled}
-            className={`w-full bg-transparent border-none outline-none text-green-400 font-mono placeholder-green-900 caret-green-500 ${getTextSizeClass()}`}
-            placeholder={disabled ? "PROCESSING..." : placeholder}
-            autoComplete="off"
-            spellCheck="false"
-          />
-        </form>
+      <div className="relative flex items-center bg-black border border-green-800/50 px-3 py-4 shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)]">
+        <div className="flex items-center w-full">
+            <span 
+              className={`text-green-500 font-bold mr-3 animate-pulse select-none leading-none ${getTextSizeClass()}`}
+              style={{ transform: 'translateY(-1px)' }} // Visual tweak for VT323 font baseline
+            >
+              {'>'}
+            </span>
+            <form onSubmit={handleSubmit} className="flex-1 flex items-center">
+              <input
+                ref={inputRef}
+                type="text"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                disabled={disabled}
+                className={`w-full bg-transparent border-none outline-none text-green-400 font-mono placeholder-green-900/60 caret-green-500 p-0 m-0 leading-none ${getTextSizeClass()}`}
+                placeholder={disabled ? "PROCESSING..." : placeholder}
+                autoComplete="off"
+                spellCheck="false"
+              />
+            </form>
+        </div>
       </div>
     </div>
   );
