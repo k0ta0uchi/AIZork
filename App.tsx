@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { initializeGame, sendCommand, generateSceneImage, restoreSession, switchSessionLanguage } from './services/geminiService';
 import { playInputSound, playResponseSound, playImportantSound, playGameOverSound, setMute, playBGM, stopBGM, setBgmMute } from './services/audioService';
-import { GameState, ChatMessage, GameStatus, ResponseCategory, Content, SavedGame, Language, BGMMood, GameVersion } from './types';
+import { GameState, ChatMessage, GameStatus, ResponseCategory, Content, SavedGame, Language, BGMMood, GameVersion, Coordinates } from './types';
 import { RetroInput, Suggestion } from './components/RetroInput';
 import { StatusPanel } from './components/StatusPanel';
 import { GameLog } from './components/GameLog';
@@ -124,11 +124,12 @@ const App: React.FC = () => {
     }
 
     if (gameState?.bgmMood) {
-      playBGM(gameState.bgmMood);
+      // Pass selectedGame to support version-specific music
+      playBGM(gameState.bgmMood, selectedGame);
     } else {
       stopBGM();
     }
-  }, [gameState?.bgmMood, status]);
+  }, [gameState?.bgmMood, status, selectedGame]);
 
   const checkSaveData = () => {
     let found = false;
@@ -184,33 +185,54 @@ const App: React.FC = () => {
     }
   };
 
-  const processGameState = (newState: GameState, rawText: string) => {
+  // Process and update game state, including auto-mapping
+  const processGameState = (aiState: GameState, rawText: string) => {
     const messageId = Date.now().toString();
+    
+    // --- Auto-Mapping Logic ---
+    // Merge previous visited locations with the current one
+    const currentCoords = aiState.coordinates;
+    const previousVisited = gameState?.visitedLocations || [];
+    
+    const isVisited = previousVisited.some(
+      v => v.x === currentCoords.x && v.y === currentCoords.y && v.floor === currentCoords.floor
+    );
+
+    const updatedVisited = isVisited 
+      ? previousVisited 
+      : [...previousVisited, currentCoords];
+
+    // Create the final state object with persistent visited locations
+    const finalState: GameState = {
+      ...aiState,
+      visitedLocations: updatedVisited
+    };
+
     const newMessage: ChatMessage = {
       id: messageId,
       role: 'model',
-      text: newState.narrative,
+      text: finalState.narrative,
     };
 
     setSessionHistory(prev => [...prev, { role: 'model', parts: [{ text: rawText }] }]);
 
-    if (newState.gameOver) {
+    if (finalState.gameOver) {
       // BGM handled in effect
-    } else if (newState.category === ResponseCategory.IMPORTANT) {
+    } else if (finalState.category === ResponseCategory.IMPORTANT) {
       playImportantSound();
     } else {
       playResponseSound();
     }
 
-    if (newState.category === ResponseCategory.IMPORTANT && enableImages) {
+    if (finalState.category === ResponseCategory.IMPORTANT && enableImages) {
       newMessage.isImageLoading = true;
-      handleImageGeneration(messageId, `${newState.locationName}. ${newState.narrative}`);
+      handleImageGeneration(messageId, `${finalState.locationName}. ${finalState.narrative}`);
     }
 
-    setGameState(newState);
+    setGameState(finalState);
     setHistory(prev => [...prev, newMessage]);
 
-    if (newState.gameOver) {
+    if (finalState.gameOver) {
       setStatus(GameStatus.GAME_OVER);
     } else {
       setStatus(GameStatus.PLAYING);
@@ -222,11 +244,13 @@ const App: React.FC = () => {
     setSelectedGame(version);
     setStatus(GameStatus.LOADING);
     setHistory([{ id: 'connecting', role: 'model', text: T.connecting }]);
-    setSessionHistory([]); 
+    setSessionHistory([]);
+    setGameState(null); // Clear previous state
+
     try {
-      const { gameState, rawText } = await initializeGame(language, version);
+      const { gameState: initialAiState, rawText } = await initializeGame(language, version);
       setSessionHistory([{ role: 'user', parts: [{ text: 'START_GAME' }] }]);
-      processGameState(gameState, rawText);
+      processGameState(initialAiState, rawText);
     } catch (error) {
       console.error(error);
       setStatus(GameStatus.ERROR);
@@ -247,8 +271,8 @@ const App: React.FC = () => {
     setStatus(GameStatus.LOADING);
 
     try {
-      const { gameState, rawText } = await sendCommand(text);
-      processGameState(gameState, rawText);
+      const { gameState: nextAiState, rawText } = await sendCommand(text);
+      processGameState(nextAiState, rawText);
     } catch (error) {
       console.error(error);
       setHistory(prev => [
@@ -281,7 +305,7 @@ const App: React.FC = () => {
     }));
 
     const saveData: SavedGame = {
-      gameState,
+      gameState, // This now includes visitedLocations
       displayHistory: sanitizedHistory,
       sessionHistory,
       timestamp: Date.now(),
@@ -319,7 +343,7 @@ const App: React.FC = () => {
       setIsLoadModalOpen(false);
       setStatus(GameStatus.LOADING);
       
-      setGameState(saveData.gameState);
+      setGameState(saveData.gameState); // Restores visitedLocations
       setHistory(saveData.displayHistory);
       setSessionHistory(saveData.sessionHistory);
       if (saveData.language) {
@@ -528,6 +552,7 @@ const App: React.FC = () => {
         isOpen={isMapModalOpen}
         onClose={() => setIsMapModalOpen(false)}
         currentCoordinates={gameState?.coordinates}
+        visitedLocations={gameState?.visitedLocations}
         language={language}
         gameVersion={selectedGame}
       />

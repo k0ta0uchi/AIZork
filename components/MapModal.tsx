@@ -7,6 +7,7 @@ interface MapModalProps {
   isOpen: boolean;
   onClose: () => void;
   currentCoordinates: Coordinates | undefined;
+  visitedLocations: Coordinates[] | undefined;
   language: 'ja' | 'en';
   gameVersion: GameVersion;
 }
@@ -15,6 +16,7 @@ export const MapModal: React.FC<MapModalProps> = ({
   isOpen, 
   onClose, 
   currentCoordinates,
+  visitedLocations = [],
   language,
   gameVersion
 }) => {
@@ -28,11 +30,29 @@ export const MapModal: React.FC<MapModalProps> = ({
   const CENTER_X = 300; // Canvas center
   const CENTER_Y = 200;
 
-  // Filter nodes based on layer and game version
-  const gameNodes = ZORK_MAP_DATA[gameVersion] || [];
-  const visibleNodes = gameNodes.filter(node => {
-    if (viewLayer === 'surface') return node.coords.floor >= 0;
-    return node.coords.floor < 0;
+  // Function to find location name from static database
+  const getLocationName = (coords: Coordinates) => {
+    const knownData = ZORK_MAP_DATA[gameVersion];
+    if (!knownData) return language === 'ja' ? "未踏の地" : "Unknown";
+
+    const match = knownData.find(n => 
+      n.coords.x === coords.x && 
+      n.coords.y === coords.y && 
+      n.coords.floor === coords.floor
+    );
+
+    if (match) {
+      return language === 'ja' ? match.nameJa : match.nameEn;
+    }
+    
+    // Fallback for Remix or generic locations
+    return language === 'ja' ? `エリア ${coords.x},${coords.y}` : `Area ${coords.x},${coords.y}`;
+  };
+
+  // Filter visited locations based on current view layer
+  const visibleNodes = visitedLocations.filter(coords => {
+    if (viewLayer === 'surface') return coords.floor >= 0;
+    return coords.floor < 0;
   });
 
   const playerOnCurrentLayer = currentCoordinates 
@@ -92,16 +112,17 @@ export const MapModal: React.FC<MapModalProps> = ({
 
           <svg width="600" height="400" viewBox="0 0 600 400" className="w-full h-full max-w-[600px] max-h-[400px]">
              
-             {/* Draw Nodes */}
-             {visibleNodes.map((node, i) => {
-               const { sx, sy } = getScreenCoords(node.coords.x, node.coords.y);
+             {/* Draw Visited Nodes */}
+             {visibleNodes.map((coords, i) => {
+               const { sx, sy } = getScreenCoords(coords.x, coords.y);
                const isCurrent = currentCoordinates && 
-                                 currentCoordinates.x === node.coords.x && 
-                                 currentCoordinates.y === node.coords.y && 
-                                 currentCoordinates.floor === node.coords.floor;
+                                 currentCoordinates.x === coords.x && 
+                                 currentCoordinates.y === coords.y && 
+                                 currentCoordinates.floor === coords.floor;
                
                return (
                  <g key={i}>
+                   {/* Connection lines would go here but simple grid is cleaner for now */}
                    <rect 
                      x={sx - 16} y={sy - 16} 
                      width="32" height="32" 
@@ -112,37 +133,11 @@ export const MapModal: React.FC<MapModalProps> = ({
                      textAnchor="middle" 
                      className="fill-green-700 text-[8px] font-mono uppercase"
                    >
-                     {language === 'ja' ? node.nameJa : node.nameEn}
+                     {getLocationName(coords)}
                    </text>
                  </g>
                );
              })}
-
-             {/* Draw Player Cursor if position is not in known list but valid */}
-             {playerOnCurrentLayer && currentCoordinates && !visibleNodes.some(n => n.coords.x === currentCoordinates.x && n.coords.y === currentCoordinates.y) && (
-                <g>
-                  {(() => {
-                    const { sx, sy } = getScreenCoords(currentCoordinates.x, currentCoordinates.y);
-                    return (
-                      <>
-                        <rect 
-                          x={sx - 16} y={sy - 16} 
-                          width="32" height="32" 
-                          strokeDasharray="4 2"
-                          className="fill-black stroke-2 stroke-green-500 animate-pulse"
-                        />
-                         <text 
-                          x={sx} y={sy + 30} 
-                          textAnchor="middle" 
-                          className="fill-green-500 text-[8px] font-mono uppercase"
-                        >
-                          ???
-                        </text>
-                      </>
-                    );
-                  })()}
-                </g>
-             )}
 
              {/* Player Marker Logic */}
              {playerOnCurrentLayer && currentCoordinates && (
@@ -154,6 +149,8 @@ export const MapModal: React.FC<MapModalProps> = ({
           </svg>
           
           <div className="absolute bottom-2 right-2 text-[10px] text-green-800 font-mono">
+             AUTO-MAPPING ENABLED
+             <br/>
              COORDS: {currentCoordinates ? `${currentCoordinates.x}, ${currentCoordinates.y}, ${currentCoordinates.floor}` : 'N/A'}
           </div>
         </div>

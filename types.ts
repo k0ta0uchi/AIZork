@@ -10,6 +10,7 @@ export interface GameState {
   suggestions: string[];
   bgmMood: BGMMood;
   coordinates: Coordinates;
+  visitedLocations: Coordinates[]; // Auto-mapping history
 }
 
 export interface Coordinates {
