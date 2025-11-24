@@ -13,6 +13,8 @@ interface StatusPanelProps {
   onSave: () => void;
   onLoad: () => void;
   hasSaveData: boolean;
+  isOpen?: boolean; // Mobile state
+  onClose?: () => void; // Mobile close handler
 }
 
 export const StatusPanel: React.FC<StatusPanelProps> = ({ 
@@ -25,7 +27,9 @@ export const StatusPanel: React.FC<StatusPanelProps> = ({
   onToggleLanguage,
   onSave,
   onLoad,
-  hasSaveData
+  hasSaveData,
+  isOpen = false,
+  onClose
 }) => {
   
   const SettingsToggle = () => (
@@ -82,14 +86,14 @@ export const StatusPanel: React.FC<StatusPanelProps> = ({
       <h3 className="text-xs uppercase text-green-700 mb-2 border-b border-green-900/50 pb-1">System</h3>
       <div className="grid grid-cols-2 gap-2">
         <button 
-          onClick={onSave}
+          onClick={() => { onSave(); if(onClose) onClose(); }}
           disabled={!gameState}
           className="bg-green-900/20 border border-green-800 hover:bg-green-800/30 text-green-400 text-xs py-1 px-2 rounded-sm transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
         >
           SAVE...
         </button>
         <button 
-          onClick={onLoad}
+          onClick={() => { onLoad(); if(onClose) onClose(); }}
           disabled={!hasSaveData}
           className="bg-green-900/20 border border-green-800 hover:bg-green-800/30 text-green-400 text-xs py-1 px-2 rounded-sm transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
         >
@@ -104,82 +108,124 @@ export const StatusPanel: React.FC<StatusPanelProps> = ({
     </div>
   );
 
-  if (!gameState) {
-    return (
-      <div className="hidden md:flex flex-col w-72 border-l-2 border-green-800 bg-zinc-950/90 h-full shrink-0">
-        <div className="p-4 border-b border-green-900">
-          <h2 className="text-xl font-bold text-green-900 mb-1 text-center uppercase tracking-wider">Status</h2>
-        </div>
-        <div className="p-4 text-green-800 text-center mt-10 text-sm uppercase tracking-widest flex-1">
-          System Offline
-        </div>
-        <div className="mt-auto mb-4">
-          <SettingsToggle />
-          <SystemControls />
-        </div>
-        <div className="p-4 border-t border-green-900 text-xs text-green-900 text-center">
-          Terminal Ready
-        </div>
-      </div>
-    );
-  }
+  // Common wrapper styles for both System Offline and Active Game states
+  const wrapperClasses = `
+    flex flex-col border-l-2 border-green-800 bg-zinc-950/95 h-full shrink-0
+    fixed inset-y-0 right-0 z-40 w-80 transform transition-transform duration-300 ease-in-out
+    md:translate-x-0 md:static md:w-72 md:bg-zinc-950/90
+    ${isOpen ? 'translate-x-0 shadow-[-10px_0_30px_rgba(0,0,0,0.8)]' : 'translate-x-full'}
+  `;
+
+  const MobileBackdrop = () => (
+    isOpen ? (
+      <div 
+        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-30 md:hidden transition-opacity"
+        onClick={onClose}
+      />
+    ) : null
+  );
+
+  const Header = ({ title }: { title: string }) => (
+    <div className="p-4 border-b border-green-900 flex justify-between items-center">
+      <h2 className="text-xl font-bold text-green-900 md:text-green-400 mb-1 uppercase tracking-wider">{title}</h2>
+      {/* Mobile Close Button */}
+      <button 
+        onClick={onClose}
+        className="md:hidden text-green-600 hover:text-green-400 font-mono text-xl"
+      >
+        [X]
+      </button>
+    </div>
+  );
 
   // Helper for labels
   const L = (ja: string, en: string) => language === 'ja' ? ja : en;
 
+  // -- RENDER: System Offline State --
+  if (!gameState) {
+    return (
+      <>
+        <MobileBackdrop />
+        <div className={wrapperClasses}>
+          <Header title="Status" />
+          <div className="p-4 text-green-800 text-center mt-10 text-sm uppercase tracking-widest flex-1">
+            System Offline
+          </div>
+          <div className="mt-auto mb-4">
+            <SettingsToggle />
+            <SystemControls />
+          </div>
+          <div className="p-4 border-t border-green-900 text-xs text-green-900 text-center">
+            Terminal Ready
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  // -- RENDER: Active Game State --
   return (
-    <div className="hidden md:flex w-72 border-l-2 border-green-800 bg-zinc-950/90 h-full flex-col font-mono text-green-500 shrink-0">
-      <div className="p-4 border-b border-green-900">
-        <h2 className="text-xl font-bold text-green-400 mb-1 text-center uppercase tracking-wider">Status</h2>
-      </div>
-
-      <div className="p-4 space-y-6 overflow-y-auto flex-1">
-        {/* Location */}
-        <div>
-          <h3 className="text-xs uppercase text-green-700 mb-1 border-b border-green-900/50 pb-1">{L('現在地', 'LOCATION')}</h3>
-          <p className="text-lg font-bold text-green-300 leading-tight">{gameState.locationName}</p>
+    <>
+      <MobileBackdrop />
+      <div className={`${wrapperClasses} font-mono text-green-500`}>
+        <div className="p-4 border-b border-green-900 flex justify-between items-center">
+          <h2 className="text-xl font-bold text-green-400 mb-1 uppercase tracking-wider">Status</h2>
+          <button 
+            onClick={onClose}
+            className="md:hidden text-green-600 hover:text-green-400 font-mono text-xl"
+          >
+            [X]
+          </button>
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="p-4 space-y-6 overflow-y-auto flex-1">
+          {/* Location */}
           <div>
-            <h3 className="text-xs uppercase text-green-700 mb-1 border-b border-green-900/50 pb-1">{L('スコア', 'SCORE')}</h3>
-            <p className="text-2xl font-bold text-green-300">{gameState.score}</p>
+            <h3 className="text-xs uppercase text-green-700 mb-1 border-b border-green-900/50 pb-1">{L('現在地', 'LOCATION')}</h3>
+            <p className="text-lg font-bold text-green-300 leading-tight">{gameState.locationName}</p>
           </div>
+
+          {/* Stats */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <h3 className="text-xs uppercase text-green-700 mb-1 border-b border-green-900/50 pb-1">{L('スコア', 'SCORE')}</h3>
+              <p className="text-2xl font-bold text-green-300">{gameState.score}</p>
+            </div>
+            <div>
+              <h3 className="text-xs uppercase text-green-700 mb-1 border-b border-green-900/50 pb-1">{L('ターン', 'MOVES')}</h3>
+              <p className="text-2xl font-bold text-green-300">{gameState.moves}</p>
+            </div>
+          </div>
+
+          {/* Inventory */}
           <div>
-            <h3 className="text-xs uppercase text-green-700 mb-1 border-b border-green-900/50 pb-1">{L('ターン', 'MOVES')}</h3>
-            <p className="text-2xl font-bold text-green-300">{gameState.moves}</p>
+            <h3 className="text-xs uppercase text-green-700 mb-2 border-b border-green-900/50 pb-1">{L('持ち物 (Inventory)', 'INVENTORY')}</h3>
+            {gameState.inventory.length === 0 ? (
+              <p className="text-green-800 italic text-sm">{L('なし', 'Empty')}</p>
+            ) : (
+              <ul className="space-y-2">
+                {gameState.inventory.map((item, idx) => (
+                  <li key={idx} className="flex items-start">
+                    <span className="mr-2 text-green-700">-</span>
+                    <span className="text-green-400">{item}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         </div>
+        
+        <div className="mt-auto mb-4 border-t border-green-900/30 pt-2">
+          <SettingsToggle />
+          <SystemControls />
+        </div>
 
-        {/* Inventory */}
-        <div>
-          <h3 className="text-xs uppercase text-green-700 mb-2 border-b border-green-900/50 pb-1">{L('持ち物 (Inventory)', 'INVENTORY')}</h3>
-          {gameState.inventory.length === 0 ? (
-            <p className="text-green-800 italic text-sm">{L('なし', 'Empty')}</p>
-          ) : (
-            <ul className="space-y-2">
-              {gameState.inventory.map((item, idx) => (
-                <li key={idx} className="flex items-start">
-                  <span className="mr-2 text-green-700">-</span>
-                  <span className="text-green-400">{item}</span>
-                </li>
-              ))}
-            </ul>
-          )}
+        <div className="p-4 border-t border-green-900 text-xs text-green-800 text-center">
+           Zork I Simulation
+           <br/>
+           Powered by Gemini 2.5 Flash
         </div>
       </div>
-      
-      <div className="mt-auto mb-4 border-t border-green-900/30 pt-2">
-        <SettingsToggle />
-        <SystemControls />
-      </div>
-
-      <div className="p-4 border-t border-green-900 text-xs text-green-800 text-center">
-         Zork I Simulation
-         <br/>
-         Powered by Gemini 2.5 Flash
-      </div>
-    </div>
+    </>
   );
 };

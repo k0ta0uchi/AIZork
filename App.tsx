@@ -76,6 +76,9 @@ const App: React.FC = () => {
   const [enableSound, setEnableSound] = useState<boolean>(true);
   const [hasSaveData, setHasSaveData] = useState<boolean>(false);
 
+  // Mobile Menu State
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
   // Save/Load Modal State
   const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
   const [isLoadModalOpen, setIsLoadModalOpen] = useState(false);
@@ -335,20 +338,31 @@ const App: React.FC = () => {
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-black selection:bg-green-900 selection:text-white">
       {/* Mobile Header */}
-      <div className="md:hidden fixed top-0 left-0 w-full bg-zinc-900 border-b border-green-800 z-20 px-4 py-2 flex justify-between items-center text-green-500 text-xs font-mono">
-        <span>{gameState?.locationName || "ZORK I"}</span>
-        <span>SCR: {gameState?.score || 0} / MVS: {gameState?.moves || 0}</span>
+      <div className="md:hidden fixed top-0 left-0 w-full bg-zinc-900 border-b border-green-800 z-20 px-4 py-2 flex justify-between items-center text-green-500 text-xs font-mono shadow-md">
+        <span className="truncate max-w-[50%]">{gameState?.locationName || "ZORK I"}</span>
+        <div className="flex items-center space-x-4">
+          <span>SCR: {gameState?.score || 0}</span>
+          <button 
+            onClick={() => setIsMobileMenuOpen(true)}
+            className="p-1 border border-green-800 rounded bg-green-900/20 hover:bg-green-800/40 text-green-400"
+          >
+            {/* Hamburger Icon */}
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+        </div>
       </div>
 
-      <div className="flex flex-1 flex-col relative w-full h-full pt-8 md:pt-0">
+      <div className="flex flex-1 flex-col relative w-full h-full pt-10 md:pt-0">
         {/* Main Game Area */}
         <div className="flex-1 flex flex-col min-h-0 relative z-10">
           
           {/* Start Screen Overlay */}
           {status === GameStatus.IDLE && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black z-50">
-              <div className="text-center space-y-8 p-8 border-4 border-green-800 rounded-lg shadow-[0_0_20px_rgba(34,197,94,0.2)] bg-zinc-950 max-w-lg">
-                <h1 className="text-6xl md:text-8xl font-bold text-green-500 tracking-tighter drop-shadow-md font-['VT323']">ZORK I</h1>
+            <div className="absolute inset-0 flex items-center justify-center bg-black z-30">
+              <div className="text-center space-y-8 p-8 border-4 border-green-800 rounded-lg shadow-[0_0_20px_rgba(34,197,94,0.2)] bg-zinc-950 max-w-lg mx-4">
+                <h1 className="text-6xl md:text-8xl font-bold text-green-500 tracking-tighter font-['VT323'] animate-crt">ZORK I</h1>
                 <h2 className="text-xl text-green-700 tracking-widest uppercase">The Great Underground Empire</h2>
                 <p className="text-green-400 font-mono text-sm md:text-base whitespace-pre-wrap">
                   {T.titleSub}
@@ -419,6 +433,8 @@ const App: React.FC = () => {
         onSave={openSaveModal}
         onLoad={openLoadModal}
         hasSaveData={hasSaveData}
+        isOpen={isMobileMenuOpen}
+        onClose={() => setIsMobileMenuOpen(false)}
       />
 
       {/* Save/Load Modal */}
