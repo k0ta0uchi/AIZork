@@ -24,7 +24,24 @@ Follow these rules strictly:
    - Maintain the logic where moving in the dark without a light source leads to being eaten by a Grue.
    - Maintain inventory limits and puzzle dependencies.
 
-4. **Categorization & Atmosphere**:
+4. **Coordinate Tracking (Mapping System)**:
+   - You MUST track the player's position on a 3D grid (x, y, floor).
+   - **Origin**: "West of House" is x:0, y:0, floor:0.
+   - **Directions**: 
+     - North: y + 1
+     - South: y - 1
+     - East: x + 1
+     - West: x - 1
+     - Up: floor + 1
+     - Down: floor - 1
+   - **Key Locations for Reference**:
+     - Kitchen: x:1, y:0, floor:0
+     - Living Room: x:2, y:0, floor:0
+     - Cellar: x:2, y:0, floor:-1
+     - Troll Room: x:2, y:1, floor:-1
+   - Return the calculated \`coordinates\` in every response.
+
+5. **Categorization & Atmosphere**:
    - **Category**:
      - IMPORTANT: First visits, dramatic events.
      - REPEAT: Repeated actions/places.
@@ -39,14 +56,14 @@ Follow these rules strictly:
      - **VICTORY**: Solving a major puzzle, defeating a boss, or obtaining a treasure.
      - **GAME_OVER**: Player has died.
 
-5. **Suggestions**:
+6. **Suggestions**:
    - Provide 3-5 valid next actions based on context in the \`suggestions\` array.
    - ${lang === 'ja' ? 'Examples: "北へ移動", "ランタンを取る"' : 'Examples: "North", "Take Lantern", "Read Letter"'}
 
-6. **Output Format**:
+7. **Output Format**:
    - ALWAYS respond with the defined JSON schema. NO plain text.
 
-7. **Initialization**:
+8. **Initialization**:
    - When user sends "START_GAME", describe the opening scene (West of House) and set category to "IMPORTANT" and mood to "EXPLORATION".
    
 Note: If user input is ambiguous, ask for clarification as the Game Master.
@@ -103,9 +120,19 @@ const responseSchema: Schema = {
         BGMMood.GAME_OVER
       ],
       description: "Background music atmosphere.",
+    },
+    coordinates: {
+      type: Type.OBJECT,
+      properties: {
+        x: { type: Type.INTEGER },
+        y: { type: Type.INTEGER },
+        floor: { type: Type.INTEGER },
+      },
+      required: ["x", "y", "floor"],
+      description: "Current coordinates on 3D grid. West of House is 0,0,0.",
     }
   },
-  required: ["narrative", "locationName", "inventory", "score", "moves", "gameOver", "category", "suggestions", "bgmMood"],
+  required: ["narrative", "locationName", "inventory", "score", "moves", "gameOver", "category", "suggestions", "bgmMood", "coordinates"],
 };
 
 let chatSession: any = null;
@@ -186,7 +213,7 @@ export const restoreSession = async (history: Content[], lang: Language): Promis
   chatSession = ai.chats.create({
     model: "gemini-2.5-flash",
     config: {
-      systemInstruction: getSystemInstruction(lang), // Restore with correct language instruction
+      systemInstruction: getSystemInstruction(lang), 
       responseMimeType: "application/json",
       responseSchema: responseSchema,
       temperature: 0.5,
@@ -202,7 +229,6 @@ export const generateSceneImage = async (description: string): Promise<string | 
   const ai = new GoogleGenAI({ apiKey });
 
   try {
-    // "nano banana" corresponds to gemini-2.5-flash-image
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
       contents: {

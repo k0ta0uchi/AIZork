@@ -9,6 +9,13 @@ export interface GameState {
   category: ResponseCategory;
   suggestions: string[];
   bgmMood: BGMMood;
+  coordinates: Coordinates;
+}
+
+export interface Coordinates {
+  x: number;
+  y: number;
+  floor: number; // 0: Surface/House, -1: Underground 1, etc.
 }
 
 export interface ChatMessage {

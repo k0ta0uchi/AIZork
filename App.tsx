@@ -7,6 +7,7 @@ import { RetroInput, Suggestion } from './components/RetroInput';
 import { StatusPanel } from './components/StatusPanel';
 import { GameLog } from './components/GameLog';
 import { SaveLoadModal } from './components/SaveLoadModal';
+import { MapModal } from './components/MapModal';
 
 const SAVE_KEY_PREFIX = 'zork_save_slot_';
 const MAX_SLOTS = 5;
@@ -80,9 +81,10 @@ const App: React.FC = () => {
   // Mobile Menu State
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  // Save/Load Modal State
+  // Modal States
   const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
   const [isLoadModalOpen, setIsLoadModalOpen] = useState(false);
+  const [isMapModalOpen, setIsMapModalOpen] = useState(false);
   const [saveSlots, setSaveSlots] = useState<(SavedGame | null)[]>([]);
 
   // Initialize history with correct language on mount or lang change if idle
@@ -458,6 +460,7 @@ const App: React.FC = () => {
         hasSaveData={hasSaveData}
         isOpen={isMobileMenuOpen}
         onClose={() => setIsMobileMenuOpen(false)}
+        onOpenMap={() => setIsMapModalOpen(true)}
       />
 
       {/* Save/Load Modal */}
@@ -474,6 +477,14 @@ const App: React.FC = () => {
         onClose={() => setIsLoadModalOpen(false)}
         onAction={executeLoad}
         slots={saveSlots}
+      />
+
+      {/* Map Modal */}
+      <MapModal
+        isOpen={isMapModalOpen}
+        onClose={() => setIsMapModalOpen(false)}
+        currentCoordinates={gameState?.coordinates}
+        language={language}
       />
     </div>
   );
