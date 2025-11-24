@@ -1,16 +1,70 @@
 
 import { GoogleGenAI, Type, Schema } from "@google/genai";
-import { GameState, ResponseCategory, Content, Language, BGMMood } from "../types";
+import { GameState, ResponseCategory, Content, Language, BGMMood, GameVersion } from "../types";
 
-// Dynamic system instruction based on language
-const getSystemInstruction = (lang: Language) => `
-You are the game engine and game master for the legendary text adventure "Zork I: The Great Underground Empire".
+// Helper to get game-specific context
+const getGameContext = (version: GameVersion) => {
+  switch (version) {
+    case GameVersion.ZORK2:
+      return {
+        title: "Zork II: The Wizard of Frobozz",
+        startLocation: "Inside the Barrow",
+        keyElements: "The Wizard of Frobozz (who appears randomly casting spells), the Demon, the Carousel Room, the Dragon.",
+        goal: "Explore the region, solve puzzles involving the Wizard, and control the Demon."
+      };
+    case GameVersion.ZORK3:
+      return {
+        title: "Zork III: The Dungeon Master",
+        startLocation: "At the Foot of the Endless Stair",
+        keyElements: "The Dungeon Master, the Time Machine, the Royal Puzzle, the Guardians.",
+        goal: "Prove your worthiness to the Dungeon Master and witness the final destiny of the Great Underground Empire. Tone is more solemn and mysterious."
+      };
+    case GameVersion.ZORK_REMIX:
+      return {
+        title: "ZORK REMIX: The Glitched Empire",
+        startLocation: "The Nexus of Probability (A strange void where dimensions collide)",
+        keyElements: "A CHAOTIC FUSION of Zork I, II, and III. Map layout is randomized. Items from all games are scattered randomly. The Thief might steal the Wizard's wand. The Troll might be guarding the Time Machine.",
+        goal: "Navigate this randomized world, find the Glitched Trophy, and restore the timeline. EXPECT THE UNEXPECTED."
+      };
+    case GameVersion.ZORK1:
+    default:
+      return {
+        title: "Zork I: The Great Underground Empire",
+        startLocation: "West of House",
+        keyElements: "The White House, the Troll, the Thief, the Flood Control Dam, the Cyclops.",
+        goal: "Explore the underground empire and collect the Twenty Treasures of Zork."
+      };
+  }
+};
+
+// Dynamic system instruction based on language and game version
+const getSystemInstruction = (lang: Language, version: GameVersion) => {
+  const ctx = getGameContext(version);
+  
+  let remixInstructions = "";
+  if (version === GameVersion.ZORK_REMIX) {
+    remixInstructions = `
+    *** RANDOMIZER MODE ACTIVE ***
+    - You are generating a UNIQUE, RANDOMIZED instance of the Zork universe.
+    - MIX elements from Zork I, II, and III freely.
+    - RANDOMIZE the map connections (e.g., North from the Living Room might lead to the Coal Mine).
+    - RANDOMIZE item locations.
+    - CHANGE puzzle solutions (make them logical but different from the original games).
+    - Create a sense of "glitch" or "distortion" in the narrative occasionally.
+    `;
+  }
+
+  return `
+You are the game engine and game master for the text adventure "${ctx.title}".
 Follow these rules strictly:
 
 1. **Role**:
-   - Accept user commands (move, take, examine, attack, etc.), update game state, and describe the outcome.
-   - Faithfully simulate Zork I's original map, items, puzzles, and enemy behaviors (like Grues and Trolls).
-   - Start location: "West of House".
+   - Accept user commands, update game state, and describe the outcome.
+   - Faithfully simulate the map, items, puzzles, and behaviors defined in ${ctx.title}.
+   - **Key Elements**: ${ctx.keyElements}
+   - **Main Goal**: ${ctx.goal}
+   - Start location: "${ctx.startLocation}".
+   ${remixInstructions}
 
 2. **Language & Tone**:
    ${lang === 'ja' 
@@ -26,7 +80,7 @@ Follow these rules strictly:
 
 4. **Coordinate Tracking (Mapping System)**:
    - You MUST track the player's position on a 3D grid (x, y, floor).
-   - **Origin**: "West of House" is x:0, y:0, floor:0.
+   - **Origin**: Start location ("${ctx.startLocation}") is x:0, y:0, floor:0.
    - **Directions**: 
      - North: y + 1
      - South: y - 1
@@ -34,11 +88,6 @@ Follow these rules strictly:
      - West: x - 1
      - Up: floor + 1
      - Down: floor - 1
-   - **Key Locations for Reference**:
-     - Kitchen: x:1, y:0, floor:0
-     - Living Room: x:2, y:0, floor:0
-     - Cellar: x:2, y:0, floor:-1
-     - Troll Room: x:2, y:1, floor:-1
    - Return the calculated \`coordinates\` in every response.
 
 5. **Categorization & Atmosphere**:
@@ -46,28 +95,21 @@ Follow these rules strictly:
      - IMPORTANT: First visits, dramatic events.
      - REPEAT: Repeated actions/places.
      - NORMAL: Standard actions.
-   - **BGM Mood** (Select the most appropriate background music mood):
-     - **INDOOR**: Inside the white house, living room, attic. Generally safe and quiet places.
-     - **DUNGEON**: The Great Underground Empire, caves, dark tunnels, cellars. Oppressive atmosphere.
-     - **EXPLORATION**: Outdoors (forest, canyon), clearing. Adventurous and open feeling.
-     - **MYSTERIOUS**: Encountering strange machinery (Flood Control Dam), magical effects, ancient puzzles, or mirror rooms.
-     - **DANGER**: Presence of the Thief, running out of light, hearing growls, low health, or high tension moments.
-     - **BATTLE**: Active combat with Troll, Cyclops, Thief, or other monsters.
-     - **VICTORY**: Solving a major puzzle, defeating a boss, or obtaining a treasure.
-     - **GAME_OVER**: Player has died.
+   - **BGM Mood**: Select the most appropriate background music mood (EXPLORATION, INDOOR, DUNGEON, MYSTERIOUS, DANGER, BATTLE, VICTORY, GAME_OVER).
 
 6. **Suggestions**:
    - Provide 3-5 valid next actions based on context in the \`suggestions\` array.
-   - ${lang === 'ja' ? 'Examples: "北へ移動", "ランタンを取る"' : 'Examples: "North", "Take Lantern", "Read Letter"'}
+   - ${lang === 'ja' ? 'Examples: "北へ移動", "剣を取る"' : 'Examples: "North", "Take Sword", "Read Book"'}
 
 7. **Output Format**:
    - ALWAYS respond with the defined JSON schema. NO plain text.
 
 8. **Initialization**:
-   - When user sends "START_GAME", describe the opening scene (West of House) and set category to "IMPORTANT" and mood to "EXPLORATION".
+   - When user sends "START_GAME", describe the opening scene and set category to "IMPORTANT" and mood to "EXPLORATION" or "DUNGEON" depending on the start.
    
 Note: If user input is ambiguous, ask for clarification as the Game Master.
 `;
+};
 
 const responseSchema: Schema = {
   type: Type.OBJECT,
@@ -129,7 +171,7 @@ const responseSchema: Schema = {
         floor: { type: Type.INTEGER },
       },
       required: ["x", "y", "floor"],
-      description: "Current coordinates on 3D grid. West of House is 0,0,0.",
+      description: "Current coordinates on 3D grid. Start point is 0,0,0.",
     }
   },
   required: ["narrative", "locationName", "inventory", "score", "moves", "gameOver", "category", "suggestions", "bgmMood", "coordinates"],
@@ -137,7 +179,7 @@ const responseSchema: Schema = {
 
 let chatSession: any = null;
 
-export const initializeGame = async (lang: Language): Promise<{ gameState: GameState, rawText: string }> => {
+export const initializeGame = async (lang: Language, version: GameVersion): Promise<{ gameState: GameState, rawText: string }> => {
   const apiKey = process.env.API_KEY;
   if (!apiKey) {
     throw new Error("API Key not found");
@@ -148,10 +190,10 @@ export const initializeGame = async (lang: Language): Promise<{ gameState: GameS
   chatSession = ai.chats.create({
     model: "gemini-2.5-flash",
     config: {
-      systemInstruction: getSystemInstruction(lang),
+      systemInstruction: getSystemInstruction(lang, version),
       responseMimeType: "application/json",
       responseSchema: responseSchema,
-      temperature: 0.5,
+      temperature: 0.7, // Slightly higher creativity for games, especially Remix
     },
   });
 
@@ -202,7 +244,7 @@ export const switchSessionLanguage = async (lang: Language): Promise<{ gameState
   }
 };
 
-export const restoreSession = async (history: Content[], lang: Language): Promise<void> => {
+export const restoreSession = async (history: Content[], lang: Language, version: GameVersion): Promise<void> => {
   const apiKey = process.env.API_KEY;
   if (!apiKey) {
     throw new Error("API Key not found");
@@ -213,10 +255,10 @@ export const restoreSession = async (history: Content[], lang: Language): Promis
   chatSession = ai.chats.create({
     model: "gemini-2.5-flash",
     config: {
-      systemInstruction: getSystemInstruction(lang), 
+      systemInstruction: getSystemInstruction(lang, version), 
       responseMimeType: "application/json",
       responseSchema: responseSchema,
-      temperature: 0.5,
+      temperature: 0.7,
     },
     history: history
   });

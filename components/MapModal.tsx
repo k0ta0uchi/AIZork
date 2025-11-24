@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Coordinates } from '../types';
+import { Coordinates, GameVersion } from '../types';
 import { ZORK_MAP_DATA } from '../services/mapData';
 
 interface MapModalProps {
@@ -8,13 +8,15 @@ interface MapModalProps {
   onClose: () => void;
   currentCoordinates: Coordinates | undefined;
   language: 'ja' | 'en';
+  gameVersion: GameVersion;
 }
 
 export const MapModal: React.FC<MapModalProps> = ({ 
   isOpen, 
   onClose, 
   currentCoordinates,
-  language
+  language,
+  gameVersion
 }) => {
   const [viewLayer, setViewLayer] = useState<'surface' | 'underground'>('surface');
 
@@ -26,8 +28,9 @@ export const MapModal: React.FC<MapModalProps> = ({
   const CENTER_X = 300; // Canvas center
   const CENTER_Y = 200;
 
-  // Filter nodes based on layer
-  const visibleNodes = ZORK_MAP_DATA.filter(node => {
+  // Filter nodes based on layer and game version
+  const gameNodes = ZORK_MAP_DATA[gameVersion] || [];
+  const visibleNodes = gameNodes.filter(node => {
     if (viewLayer === 'surface') return node.coords.floor >= 0;
     return node.coords.floor < 0;
   });
@@ -51,7 +54,7 @@ export const MapModal: React.FC<MapModalProps> = ({
         <div className="flex items-center justify-between p-4 border-b border-green-900 bg-green-900/10">
           <div className="flex items-center space-x-4">
             <h2 className="text-xl font-bold text-green-400 tracking-wider uppercase font-mono">
-              MAP SYSTEM
+              MAP SYSTEM - {gameVersion}
             </h2>
             <div className="flex bg-black border border-green-800 rounded overflow-hidden">
                <button 
@@ -88,9 +91,6 @@ export const MapModal: React.FC<MapModalProps> = ({
           </div>
 
           <svg width="600" height="400" viewBox="0 0 600 400" className="w-full h-full max-w-[600px] max-h-[400px]">
-             {/* Draw Connections (Simplified: Just lines to neighbors? Hard to know strict connections without graph. 
-                 For now, just draw grid nodes) 
-             */}
              
              {/* Draw Nodes */}
              {visibleNodes.map((node, i) => {

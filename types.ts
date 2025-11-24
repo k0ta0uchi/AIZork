@@ -57,12 +57,20 @@ export interface Content {
   parts: { text: string }[];
 }
 
+export enum GameVersion {
+  ZORK1 = 'ZORK1',
+  ZORK2 = 'ZORK2',
+  ZORK3 = 'ZORK3',
+  ZORK_REMIX = 'ZORK_REMIX'
+}
+
 export interface SavedGame {
   gameState: GameState;
   displayHistory: ChatMessage[];
   sessionHistory: Content[];
   timestamp: number;
   language: Language;
+  gameVersion: GameVersion;
 }
 
 export type Language = 'ja' | 'en';

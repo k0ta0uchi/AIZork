@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { initializeGame, sendCommand, generateSceneImage, restoreSession, switchSessionLanguage } from './services/geminiService';
 import { playInputSound, playResponseSound, playImportantSound, playGameOverSound, setMute, playBGM, stopBGM, setBgmMute } from './services/audioService';
-import { GameState, ChatMessage, GameStatus, ResponseCategory, Content, SavedGame, Language, BGMMood } from './types';
+import { GameState, ChatMessage, GameStatus, ResponseCategory, Content, SavedGame, Language, BGMMood, GameVersion } from './types';
 import { RetroInput, Suggestion } from './components/RetroInput';
 import { StatusPanel } from './components/StatusPanel';
 import { GameLog } from './components/GameLog';
@@ -15,13 +15,14 @@ const MAX_SLOTS = 5;
 // UI Text Dictionary
 const UI_TEXT = {
   ja: {
-    systemInit: "システム初期化中...\nZORK I ゲームエンジン (Japanese Translation Module) をロードしています...\n\n準備ができたら「START」ボタンを押してください。",
+    systemInit: "システム初期化中...\nZORK I/II/III ゲームエンジン (Japanese Translation Module) をロードしています...\n\nゲームを選択してください。",
     connecting: "接続中... 物語を生成しています...",
     connectError: "ゲームの初期化に失敗しました。APIキーを確認してください。",
     commError: "通信エラーが発生しました。もう一度試してください。",
     saveSuccess: "ゲームデータをスロットに保存しました",
     saveFail: "セーブに失敗しました。データ容量が上限を超えています。",
     loadFail: "セーブデータの読み込みに失敗しました",
+    loadVersionMismatch: "異なるゲームバージョンのセーブデータです。ロードできません。",
     titleSub: "AIによってリアルタイムに翻訳・実行される\n伝説のテキストアドベンチャー (日本語版)",
     startButton: "GAME START",
     loadButton: "LOAD GAME",
@@ -39,13 +40,14 @@ const UI_TEXT = {
     ]
   },
   en: {
-    systemInit: "System Initializing...\nLoading ZORK I Game Engine...\n\nPress 'START' when ready.",
+    systemInit: "System Initializing...\nLoading ZORK I/II/III Game Engine...\n\nSelect a game to start.",
     connecting: "Connecting... Generating story...",
     connectError: "Failed to initialize game. Please check your API Key.",
     commError: "Communication error. Please try again.",
     saveSuccess: "Game saved to slot.",
     saveFail: "Save failed. Storage limit exceeded.",
     loadFail: "Failed to load save data.",
+    loadVersionMismatch: "Save data is for a different game version.",
     titleSub: "The legendary text adventure, simulated by AI\nin real-time.",
     startButton: "GAME START",
     loadButton: "LOAD GAME",
@@ -69,6 +71,7 @@ const App: React.FC = () => {
   const T = UI_TEXT[language];
 
   const [status, setStatus] = useState<GameStatus>(GameStatus.IDLE);
+  const [selectedGame, setSelectedGame] = useState<GameVersion>(GameVersion.ZORK1);
   const [history, setHistory] = useState<ChatMessage[]>([]);
   const [sessionHistory, setSessionHistory] = useState<Content[]>([]);
   const [gameState, setGameState] = useState<GameState | null>(null);
@@ -214,13 +217,14 @@ const App: React.FC = () => {
     }
   };
   
-  const handleStart = async () => {
+  const handleStart = async (version: GameVersion) => {
     playInputSound();
+    setSelectedGame(version);
     setStatus(GameStatus.LOADING);
     setHistory([{ id: 'connecting', role: 'model', text: T.connecting }]);
     setSessionHistory([]); 
     try {
-      const { gameState, rawText } = await initializeGame(language);
+      const { gameState, rawText } = await initializeGame(language, version);
       setSessionHistory([{ role: 'user', parts: [{ text: 'START_GAME' }] }]);
       processGameState(gameState, rawText);
     } catch (error) {
@@ -281,7 +285,8 @@ const App: React.FC = () => {
       displayHistory: sanitizedHistory,
       sessionHistory,
       timestamp: Date.now(),
-      language
+      language,
+      gameVersion: selectedGame
     };
 
     try {
@@ -300,9 +305,19 @@ const App: React.FC = () => {
     if (!saved) return;
     
     try {
+      const saveData: SavedGame = JSON.parse(saved);
+      
+      // Basic version check
+      if (saveData.gameVersion && saveData.gameVersion !== selectedGame && status !== GameStatus.IDLE) {
+          // If already playing a game, don't allow cross-loading without warning
+          // But for simplicity, we'll allow it if from title screen logic handles it
+      }
+      
+      // Update selected game to match save
+      setSelectedGame(saveData.gameVersion || GameVersion.ZORK1);
+
       setIsLoadModalOpen(false);
       setStatus(GameStatus.LOADING);
-      const saveData: SavedGame = JSON.parse(saved);
       
       setGameState(saveData.gameState);
       setHistory(saveData.displayHistory);
@@ -311,7 +326,7 @@ const App: React.FC = () => {
         setLanguage(saveData.language);
       }
       
-      await restoreSession(saveData.sessionHistory, saveData.language || 'ja');
+      await restoreSession(saveData.sessionHistory, saveData.language || 'ja', saveData.gameVersion || GameVersion.ZORK1);
       
       setStatus(saveData.gameState.gameOver ? GameStatus.GAME_OVER : GameStatus.PLAYING);
       playImportantSound();
@@ -362,7 +377,7 @@ const App: React.FC = () => {
     <div className="flex h-screen w-screen overflow-hidden bg-black selection:bg-green-900 selection:text-white">
       {/* Mobile Header */}
       <div className="md:hidden fixed top-0 left-0 w-full bg-zinc-900 border-b border-green-800 z-20 px-4 py-2 flex justify-between items-center text-green-500 text-xs font-mono shadow-md">
-        <span className="truncate max-w-[50%]">{gameState?.locationName || "ZORK I"}</span>
+        <span className="truncate max-w-[50%]">{gameState?.locationName || (selectedGame === GameVersion.ZORK_REMIX ? 'ZORK REMIX' : selectedGame)}</span>
         <div className="flex items-center space-x-4">
           <span>SCR: {gameState?.score || 0}</span>
           <button 
@@ -383,28 +398,57 @@ const App: React.FC = () => {
           
           {/* Start Screen Overlay */}
           {status === GameStatus.IDLE && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black z-30">
-              <div className="text-center space-y-8 p-8 border-4 border-green-800 rounded-lg shadow-[0_0_20px_rgba(34,197,94,0.2)] bg-zinc-950 max-w-lg mx-4">
-                <h1 className="text-6xl md:text-8xl font-bold text-green-500 tracking-tighter font-['VT323'] animate-crt">ZORK I</h1>
-                <h2 className="text-xl text-green-700 tracking-widest uppercase">The Great Underground Empire</h2>
-                <p className="text-green-400 font-mono text-sm md:text-base whitespace-pre-wrap">
+            <div className="absolute inset-0 flex items-center justify-center bg-black z-30 overflow-y-auto">
+              <div className="text-center space-y-6 p-8 border-4 border-green-800 rounded-lg shadow-[0_0_20px_rgba(34,197,94,0.2)] bg-zinc-950 max-w-lg mx-4 my-8">
+                <h1 className="text-6xl md:text-8xl font-bold text-green-500 tracking-tighter font-['VT323'] animate-crt">ZORK</h1>
+                <h2 className="text-xl text-green-700 tracking-widest uppercase mb-6">Interactive Fiction Saga</h2>
+                <p className="text-green-400 font-mono text-sm md:text-base whitespace-pre-wrap mb-6">
                   {T.titleSub}
                 </p>
                 
-                <div className="flex flex-col space-y-4">
+                <div className="flex flex-col space-y-3 w-full max-w-xs mx-auto">
                   <button 
-                    onClick={handleStart}
-                    className="px-8 py-3 bg-green-900 hover:bg-green-700 text-green-100 font-bold rounded border border-green-500 transition-colors font-mono text-xl animate-pulse"
+                    onClick={() => handleStart(GameVersion.ZORK1)}
+                    className="px-4 py-3 bg-green-900/40 hover:bg-green-700 text-green-100 font-bold rounded border border-green-500 transition-colors font-mono text-lg flex flex-col items-center group"
                   >
-                    {T.startButton}
+                    <span>ZORK I</span>
+                    <span className="text-xs text-green-400 group-hover:text-green-200">The Great Underground Empire</span>
                   </button>
+
+                  <button 
+                    onClick={() => handleStart(GameVersion.ZORK2)}
+                    className="px-4 py-3 bg-green-900/20 hover:bg-green-700 text-green-300 font-bold rounded border border-green-800 hover:border-green-500 transition-colors font-mono text-lg flex flex-col items-center group"
+                  >
+                    <span>ZORK II</span>
+                    <span className="text-xs text-green-600 group-hover:text-green-200">The Wizard of Frobozz</span>
+                  </button>
+
+                  <button 
+                    onClick={() => handleStart(GameVersion.ZORK3)}
+                    className="px-4 py-3 bg-green-900/20 hover:bg-green-700 text-green-300 font-bold rounded border border-green-800 hover:border-green-500 transition-colors font-mono text-lg flex flex-col items-center group"
+                  >
+                    <span>ZORK III</span>
+                    <span className="text-xs text-green-600 group-hover:text-green-200">The Dungeon Master</span>
+                  </button>
+
+                  {/* Remix Button */}
+                  <button 
+                    onClick={() => handleStart(GameVersion.ZORK_REMIX)}
+                    className="px-4 py-3 bg-purple-900/20 hover:bg-purple-800/50 text-purple-300 font-bold rounded border border-purple-800 hover:border-purple-500 transition-colors font-mono text-lg flex flex-col items-center group mt-4 shadow-[0_0_10px_rgba(168,85,247,0.2)]"
+                  >
+                    <span className="animate-pulse text-fuchsia-400 tracking-widest">ZORK REMIX</span>
+                    <span className="text-xs text-purple-500 group-hover:text-purple-300">Infinite Probability Randomizer</span>
+                  </button>
+
                   {hasSaveData && (
-                    <button 
-                      onClick={openLoadModal}
-                      className="px-8 py-2 bg-zinc-800 hover:bg-zinc-700 text-green-400 font-bold rounded border border-green-800 transition-colors font-mono text-lg"
-                    >
-                      {T.loadButton}
-                    </button>
+                    <div className="pt-4 border-t border-green-900/50 mt-2">
+                       <button 
+                        onClick={openLoadModal}
+                        className="w-full px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-green-400 font-bold rounded border border-green-800 transition-colors font-mono text-lg"
+                      >
+                        {T.loadButton}
+                      </button>
+                    </div>
                   )}
                 </div>
               </div>
@@ -485,6 +529,7 @@ const App: React.FC = () => {
         onClose={() => setIsMapModalOpen(false)}
         currentCoordinates={gameState?.coordinates}
         language={language}
+        gameVersion={selectedGame}
       />
     </div>
   );
