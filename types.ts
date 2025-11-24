@@ -8,6 +8,7 @@ export interface GameState {
   gameOver: boolean;
   category: ResponseCategory;
   suggestions: string[];
+  bgmMood: BGMMood;
 }
 
 export interface ChatMessage {
@@ -31,6 +32,17 @@ export enum ResponseCategory {
   NORMAL = 'NORMAL',
   REPEAT = 'REPEAT',
   IMPORTANT = 'IMPORTANT'
+}
+
+export enum BGMMood {
+  EXPLORATION = 'EXPLORATION', // Outdoors, Nature, Adventure
+  INDOOR = 'INDOOR',           // Inside House, Safe-ish, Cozy
+  DUNGEON = 'DUNGEON',         // Underground, Cave, Echoey
+  MYSTERIOUS = 'MYSTERIOUS',   // Puzzles, Magic, Ancient tech
+  DANGER = 'DANGER',           // Tension, Thief nearby, Low health
+  BATTLE = 'BATTLE',           // Combat, Immediate threat
+  VICTORY = 'VICTORY',         // Triumph, Treasure found
+  GAME_OVER = 'GAME_OVER'      // Death
 }
 
 export interface Content {

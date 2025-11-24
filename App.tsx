@@ -1,8 +1,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { initializeGame, sendCommand, generateSceneImage, restoreSession, switchSessionLanguage } from './services/geminiService';
-import { playInputSound, playResponseSound, playImportantSound, playGameOverSound, setMute } from './services/audioService';
-import { GameState, ChatMessage, GameStatus, ResponseCategory, Content, SavedGame, Language } from './types';
+import { playInputSound, playResponseSound, playImportantSound, playGameOverSound, setMute, playBGM, stopBGM, setBgmMute } from './services/audioService';
+import { GameState, ChatMessage, GameStatus, ResponseCategory, Content, SavedGame, Language, BGMMood } from './types';
 import { RetroInput, Suggestion } from './components/RetroInput';
 import { StatusPanel } from './components/StatusPanel';
 import { GameLog } from './components/GameLog';
@@ -74,6 +74,7 @@ const App: React.FC = () => {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [enableImages, setEnableImages] = useState<boolean>(true);
   const [enableSound, setEnableSound] = useState<boolean>(true);
+  const [enableMusic, setEnableMusic] = useState<boolean>(true);
   const [hasSaveData, setHasSaveData] = useState<boolean>(false);
 
   // Mobile Menu State
@@ -104,6 +105,25 @@ const App: React.FC = () => {
   useEffect(() => {
     setMute(!enableSound);
   }, [enableSound]);
+
+  useEffect(() => {
+    setBgmMute(!enableMusic);
+  }, [enableMusic]);
+
+  // Handle BGM changes based on game state
+  useEffect(() => {
+    if (status === GameStatus.GAME_OVER) {
+       playGameOverSound();
+       stopBGM();
+       return;
+    }
+
+    if (gameState?.bgmMood) {
+      playBGM(gameState.bgmMood);
+    } else {
+      stopBGM();
+    }
+  }, [gameState?.bgmMood, status]);
 
   const checkSaveData = () => {
     let found = false;
@@ -170,7 +190,7 @@ const App: React.FC = () => {
     setSessionHistory(prev => [...prev, { role: 'model', parts: [{ text: rawText }] }]);
 
     if (newState.gameOver) {
-      playGameOverSound();
+      // BGM handled in effect
     } else if (newState.category === ResponseCategory.IMPORTANT) {
       playImportantSound();
     } else {
@@ -302,6 +322,7 @@ const App: React.FC = () => {
 
   const handleReset = () => {
     playInputSound();
+    stopBGM();
     setStatus(GameStatus.IDLE);
     setGameState(null);
     setErrorMsg(null);
@@ -428,6 +449,8 @@ const App: React.FC = () => {
         onToggleImages={() => setEnableImages(!enableImages)}
         enableSound={enableSound}
         onToggleSound={() => setEnableSound(!enableSound)}
+        enableMusic={enableMusic}
+        onToggleMusic={() => setEnableMusic(!enableMusic)}
         language={language}
         onToggleLanguage={handleToggleLanguage}
         onSave={openSaveModal}

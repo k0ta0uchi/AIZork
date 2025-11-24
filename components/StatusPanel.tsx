@@ -8,6 +8,8 @@ interface StatusPanelProps {
   onToggleImages: () => void;
   enableSound: boolean;
   onToggleSound: () => void;
+  enableMusic: boolean;
+  onToggleMusic: () => void;
   language: Language;
   onToggleLanguage: () => void;
   onSave: () => void;
@@ -23,6 +25,8 @@ export const StatusPanel: React.FC<StatusPanelProps> = ({
   onToggleImages,
   enableSound,
   onToggleSound,
+  enableMusic,
+  onToggleMusic,
   language,
   onToggleLanguage,
   onSave,
@@ -57,6 +61,19 @@ export const StatusPanel: React.FC<StatusPanelProps> = ({
           <div 
             className={`absolute top-0.5 left-0.5 w-4 h-4 bg-green-500 rounded-sm transition-transform duration-200 ${
               enableSound ? 'translate-x-5 shadow-[0_0_5px_#22c55e]' : 'translate-x-0 opacity-50'
+            }`}
+          ></div>
+        </div>
+      </div>
+
+      {/* Music Toggle */}
+      <div className="flex items-center justify-between group cursor-pointer mb-3" onClick={onToggleMusic}>
+        <span className="text-green-400 text-sm">BGM</span>
+        <div className="relative">
+          <div className={`w-10 h-5 rounded-sm border border-green-700 transition-colors ${enableMusic ? 'bg-green-900/50' : 'bg-black'}`}></div>
+          <div 
+            className={`absolute top-0.5 left-0.5 w-4 h-4 bg-green-500 rounded-sm transition-transform duration-200 ${
+              enableMusic ? 'translate-x-5 shadow-[0_0_5px_#22c55e]' : 'translate-x-0 opacity-50'
             }`}
           ></div>
         </div>

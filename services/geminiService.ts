@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, Type, Schema } from "@google/genai";
-import { GameState, ResponseCategory, Content, Language } from "../types";
+import { GameState, ResponseCategory, Content, Language, BGMMood } from "../types";
 
 // Dynamic system instruction based on language
 const getSystemInstruction = (lang: Language) => `
@@ -24,11 +24,20 @@ Follow these rules strictly:
    - Maintain the logic where moving in the dark without a light source leads to being eaten by a Grue.
    - Maintain inventory limits and puzzle dependencies.
 
-4. **Categorization (Important)**:
-   - Always set the category:
-   - **IMPORTANT**: First visit to a location, dramatic events, important discoveries (worthy of visual generation).
-   - **REPEAT**: Re-visiting locations or repeated states.
-   - **NORMAL**: Standard actions like taking items, checking inventory, errors.
+4. **Categorization & Atmosphere**:
+   - **Category**:
+     - IMPORTANT: First visits, dramatic events.
+     - REPEAT: Repeated actions/places.
+     - NORMAL: Standard actions.
+   - **BGM Mood** (Select the most appropriate background music mood):
+     - **INDOOR**: Inside the white house, living room, attic. Generally safe and quiet places.
+     - **DUNGEON**: The Great Underground Empire, caves, dark tunnels, cellars. Oppressive atmosphere.
+     - **EXPLORATION**: Outdoors (forest, canyon), clearing. Adventurous and open feeling.
+     - **MYSTERIOUS**: Encountering strange machinery (Flood Control Dam), magical effects, ancient puzzles, or mirror rooms.
+     - **DANGER**: Presence of the Thief, running out of light, hearing growls, low health, or high tension moments.
+     - **BATTLE**: Active combat with Troll, Cyclops, Thief, or other monsters.
+     - **VICTORY**: Solving a major puzzle, defeating a boss, or obtaining a treasure.
+     - **GAME_OVER**: Player has died.
 
 5. **Suggestions**:
    - Provide 3-5 valid next actions based on context in the \`suggestions\` array.
@@ -38,7 +47,7 @@ Follow these rules strictly:
    - ALWAYS respond with the defined JSON schema. NO plain text.
 
 7. **Initialization**:
-   - When user sends "START_GAME", describe the opening scene (West of House) and set category to "IMPORTANT".
+   - When user sends "START_GAME", describe the opening scene (West of House) and set category to "IMPORTANT" and mood to "EXPLORATION".
    
 Note: If user input is ambiguous, ask for clarification as the Game Master.
 `;
@@ -80,9 +89,23 @@ const responseSchema: Schema = {
       type: Type.ARRAY,
       items: { type: Type.STRING },
       description: "Recommended next actions (3-5 items).",
+    },
+    bgmMood: {
+      type: Type.STRING,
+      enum: [
+        BGMMood.EXPLORATION, 
+        BGMMood.INDOOR, 
+        BGMMood.DUNGEON, 
+        BGMMood.MYSTERIOUS, 
+        BGMMood.DANGER, 
+        BGMMood.BATTLE, 
+        BGMMood.VICTORY, 
+        BGMMood.GAME_OVER
+      ],
+      description: "Background music atmosphere.",
     }
   },
-  required: ["narrative", "locationName", "inventory", "score", "moves", "gameOver", "category", "suggestions"],
+  required: ["narrative", "locationName", "inventory", "score", "moves", "gameOver", "category", "suggestions", "bgmMood"],
 };
 
 let chatSession: any = null;
