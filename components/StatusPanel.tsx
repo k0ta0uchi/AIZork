@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { GameState, Language } from '../types';
 
@@ -10,6 +9,8 @@ interface StatusPanelProps {
   onToggleSound: () => void;
   enableMusic: boolean;
   onToggleMusic: () => void;
+  enableCRT: boolean;
+  onToggleCRT: () => void;
   language: Language;
   onToggleLanguage: () => void;
   onSave: () => void;
@@ -20,6 +21,29 @@ interface StatusPanelProps {
   onOpenMap: () => void;
 }
 
+// Moved outside StatusPanel to avoid TypeScript inference issues with props
+// Made children optional (?) to resolve TypeScript error "Property 'children' is missing"
+const PanelSection = ({ title, children, className = "" }: { title: string, children?: React.ReactNode, className?: string }) => (
+  <div className={`border-b-2 border-green-900/40 pb-4 mb-4 ${className}`}>
+    <h3 className="text-[10px] font-bold text-green-700 uppercase tracking-widest mb-3 flex items-center">
+      <span className="w-2 h-2 bg-green-900 rounded-full mr-2"></span>
+      {title}
+    </h3>
+    {children}
+  </div>
+);
+
+const ToggleSwitch = ({ label, active, onClick }: { label: string, active: boolean, onClick: () => void }) => (
+  <div className="flex items-center justify-between mb-2 group cursor-pointer" onClick={onClick}>
+    <span className="text-green-500/80 text-xs font-mono group-hover:text-green-300 transition-colors">{label}</span>
+    <div className="relative w-12 h-6 bg-black border border-green-800 rounded-sm overflow-hidden">
+      <div className={`absolute top-0 bottom-0 w-6 transition-all duration-200 flex items-center justify-center text-[9px] font-bold ${active ? 'right-0 bg-green-900 text-green-100' : 'left-0 bg-zinc-900 text-zinc-500'}`}>
+        {active ? 'ON' : 'OFF'}
+      </div>
+    </div>
+  </div>
+);
+
 export const StatusPanel: React.FC<StatusPanelProps> = ({ 
   gameState, 
   enableImages, 
@@ -28,6 +52,8 @@ export const StatusPanel: React.FC<StatusPanelProps> = ({
   onToggleSound,
   enableMusic,
   onToggleMusic,
+  enableCRT,
+  onToggleCRT,
   language,
   onToggleLanguage,
   onSave,
@@ -38,224 +64,163 @@ export const StatusPanel: React.FC<StatusPanelProps> = ({
   onOpenMap
 }) => {
   
-  const SettingsToggle = () => (
-    <div className="px-4 py-2">
-      <h3 className="text-xs uppercase text-green-700 mb-2 border-b border-green-900/50 pb-1">Settings</h3>
-      
-      {/* Visual Mode Toggle */}
-      <div className="flex items-center justify-between group cursor-pointer mb-3" onClick={onToggleImages}>
-        <span className="text-green-400 text-sm">Visual Mode</span>
-        <div className="relative">
-          <div className={`w-10 h-5 rounded-sm border border-green-700 transition-colors ${enableImages ? 'bg-green-900/50' : 'bg-black'}`}></div>
-          <div 
-            className={`absolute top-0.5 left-0.5 w-4 h-4 bg-green-500 rounded-sm transition-transform duration-200 ${
-              enableImages ? 'translate-x-5 shadow-[0_0_5px_#22c55e]' : 'translate-x-0 opacity-50'
-            }`}
-          ></div>
-        </div>
-      </div>
-      
-      {/* Sound Toggle */}
-      <div className="flex items-center justify-between group cursor-pointer mb-3" onClick={onToggleSound}>
-        <span className="text-green-400 text-sm">Sound FX</span>
-        <div className="relative">
-          <div className={`w-10 h-5 rounded-sm border border-green-700 transition-colors ${enableSound ? 'bg-green-900/50' : 'bg-black'}`}></div>
-          <div 
-            className={`absolute top-0.5 left-0.5 w-4 h-4 bg-green-500 rounded-sm transition-transform duration-200 ${
-              enableSound ? 'translate-x-5 shadow-[0_0_5px_#22c55e]' : 'translate-x-0 opacity-50'
-            }`}
-          ></div>
-        </div>
-      </div>
-
-      {/* Music Toggle */}
-      <div className="flex items-center justify-between group cursor-pointer mb-3" onClick={onToggleMusic}>
-        <span className="text-green-400 text-sm">BGM</span>
-        <div className="relative">
-          <div className={`w-10 h-5 rounded-sm border border-green-700 transition-colors ${enableMusic ? 'bg-green-900/50' : 'bg-black'}`}></div>
-          <div 
-            className={`absolute top-0.5 left-0.5 w-4 h-4 bg-green-500 rounded-sm transition-transform duration-200 ${
-              enableMusic ? 'translate-x-5 shadow-[0_0_5px_#22c55e]' : 'translate-x-0 opacity-50'
-            }`}
-          ></div>
-        </div>
-      </div>
-
-      {/* Language Toggle */}
-      <div className="flex items-center justify-between group cursor-pointer" onClick={onToggleLanguage}>
-        <span className="text-green-400 text-sm">Language</span>
-        <div className="flex items-center space-x-2 text-xs font-bold font-mono">
-          <span className={language === 'en' ? 'text-green-400' : 'text-green-900'}>EN</span>
-          <div className="relative">
-            <div className={`w-10 h-5 rounded-sm border border-green-700 bg-black`}></div>
-            <div 
-              className={`absolute top-0.5 left-0.5 w-4 h-4 bg-green-500 rounded-sm transition-transform duration-200 ${
-                language === 'ja' ? 'translate-x-5' : 'translate-x-0'
-              }`}
-            ></div>
-          </div>
-          <span className={language === 'ja' ? 'text-green-400' : 'text-green-900'}>JP</span>
-        </div>
-      </div>
-    </div>
-  );
-
-  const SystemControls = () => (
-    <div className="px-4 py-2 mt-2">
-      <h3 className="text-xs uppercase text-green-700 mb-2 border-b border-green-900/50 pb-1">System</h3>
-      <div className="grid grid-cols-2 gap-2">
-        <button 
-          onClick={() => { onSave(); if(onClose) onClose(); }}
-          disabled={!gameState}
-          className="bg-green-900/20 border border-green-800 hover:bg-green-800/30 text-green-400 text-xs py-1 px-2 rounded-sm transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-        >
-          SAVE...
-        </button>
-        <button 
-          onClick={() => { onLoad(); if(onClose) onClose(); }}
-          disabled={!hasSaveData}
-          className="bg-green-900/20 border border-green-800 hover:bg-green-800/30 text-green-400 text-xs py-1 px-2 rounded-sm transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-        >
-          LOAD...
-        </button>
-      </div>
-      {hasSaveData && (
-        <p className="text-[10px] text-green-800 mt-1 text-center">
-          DATA FOUND
-        </p>
-      )}
-    </div>
-  );
-
-  // Common wrapper styles for both System Offline and Active Game states
-  const wrapperClasses = `
-    flex flex-col border-l-2 border-green-800 bg-zinc-950/95 h-full shrink-0
-    fixed inset-y-0 right-0 z-40 w-80 transform transition-transform duration-300 ease-in-out
-    md:translate-x-0 md:static md:w-72 md:bg-zinc-950/90
-    ${isOpen ? 'translate-x-0 shadow-[-10px_0_30px_rgba(0,0,0,0.8)]' : 'translate-x-full'}
-  `;
-
-  const MobileBackdrop = () => (
-    isOpen ? (
-      <div 
-        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-30 md:hidden transition-opacity"
-        onClick={onClose}
-      />
-    ) : null
-  );
-
-  const Header = ({ title }: { title: string }) => (
-    <div className="p-4 border-b border-green-900 flex justify-between items-center">
-      <h2 className="text-xl font-bold text-green-900 md:text-green-400 mb-1 uppercase tracking-wider">{title}</h2>
-      {/* Mobile Close Button */}
-      <button 
-        onClick={onClose}
-        className="md:hidden text-green-600 hover:text-green-400 font-mono text-xl"
-      >
-        [X]
-      </button>
-    </div>
-  );
-
   // Helper for labels
   const L = (ja: string, en: string) => language === 'ja' ? ja : en;
 
-  // -- RENDER: System Offline State --
+  const LangSwitch = () => (
+    <div className="flex items-center justify-between mb-2 group cursor-pointer" onClick={onToggleLanguage}>
+      <span className="text-green-500/80 text-xs font-mono group-hover:text-green-300 transition-colors">LANGUAGE</span>
+      <div className="flex bg-black border border-green-800 rounded-sm overflow-hidden">
+        <div className={`px-2 py-1 text-[9px] font-bold transition-colors ${language === 'en' ? 'bg-green-900 text-green-100' : 'text-green-800'}`}>EN</div>
+        <div className={`px-2 py-1 text-[9px] font-bold transition-colors ${language === 'ja' ? 'bg-green-900 text-green-100' : 'text-green-800'}`}>JP</div>
+      </div>
+    </div>
+  );
+
+  // Common wrapper styles
+  const wrapperClasses = `
+    flex flex-col bg-zinc-950 h-full shrink-0
+    fixed inset-y-0 right-0 z-40 w-80 transform transition-transform duration-300 ease-in-out
+    md:translate-x-0 md:static md:w-72 md:border-l-2 md:border-green-900/60
+    ${isOpen ? 'translate-x-0 shadow-[-10px_0_30px_rgba(0,0,0,0.8)]' : 'translate-x-full'}
+  `;
+
+  // Offline State Render
   if (!gameState) {
     return (
       <>
-        <MobileBackdrop />
+        {isOpen && <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-30 md:hidden" onClick={onClose} />}
         <div className={wrapperClasses}>
-          <Header title="Status" />
-          <div className="p-4 text-green-800 text-center mt-10 text-sm uppercase tracking-widest flex-1">
-            System Offline
+          <div className="p-1 bg-green-900/20 mb-2 mx-2 mt-2 border border-green-900/50">
+            <div className="bg-black p-2 border border-green-900/30 text-center">
+              <span className="text-green-600 text-xs tracking-widest animate-pulse">SYSTEM STANDBY</span>
+            </div>
           </div>
-          <div className="mt-auto mb-4">
-            <SettingsToggle />
-            <SystemControls />
-          </div>
-          <div className="p-4 border-t border-green-900 text-xs text-green-900 text-center">
-            Terminal Ready
+          <div className="p-4 flex-1">
+             <PanelSection title="Config">
+                <ToggleSwitch label="VISUAL MODE" active={enableImages} onClick={onToggleImages} />
+                <ToggleSwitch label="SOUND FX" active={enableSound} onClick={onToggleSound} />
+                <ToggleSwitch label="MUSIC (BGM)" active={enableMusic} onClick={onToggleMusic} />
+                <ToggleSwitch label="CRT EFFECT" active={enableCRT} onClick={onToggleCRT} />
+                <LangSwitch />
+             </PanelSection>
+             <PanelSection title="Data Mgmt">
+               <div className="grid grid-cols-2 gap-2">
+                 <button onClick={() => { onSave(); if(onClose) onClose(); }} disabled className="opacity-50 border border-green-900 text-green-800 text-xs py-2">SAVE</button>
+                 <button onClick={() => { onLoad(); if(onClose) onClose(); }} className="border border-green-800 hover:bg-green-900/30 text-green-500 text-xs py-2">LOAD</button>
+               </div>
+             </PanelSection>
           </div>
         </div>
       </>
     );
   }
 
-  // -- RENDER: Active Game State --
+  // Active Game State
   return (
     <>
-      <MobileBackdrop />
+      {isOpen && <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-30 md:hidden" onClick={onClose} />}
+      
       <div className={`${wrapperClasses} font-mono text-green-500`}>
-        <div className="p-4 border-b border-green-900 flex justify-between items-center">
-          <h2 className="text-xl font-bold text-green-400 mb-1 uppercase tracking-wider">Status</h2>
-          <button 
-            onClick={onClose}
-            className="md:hidden text-green-600 hover:text-green-400 font-mono text-xl"
-          >
-            [X]
-          </button>
+        {/* Header Block */}
+        <div className="p-3 bg-black border-b border-green-900 flex justify-between items-center">
+          <div className="flex flex-col">
+            <h2 className="text-sm font-bold text-green-400 uppercase tracking-widest">STATUS_MOD</h2>
+            <span className="text-[10px] text-green-800">V.2.5.0-RC</span>
+          </div>
+          <button onClick={onClose} className="md:hidden text-green-600 hover:text-green-300">[X]</button>
         </div>
 
-        <div className="p-4 space-y-6 overflow-y-auto flex-1">
-          {/* Location */}
-          <div>
-            <h3 className="text-xs uppercase text-green-700 mb-1 border-b border-green-900/50 pb-1">{L('現在地', 'LOCATION')}</h3>
-            <p className="text-lg font-bold text-green-300 leading-tight">{gameState.locationName}</p>
-          </div>
-
-          {/* Map Button */}
-          <div>
+        <div className="p-4 overflow-y-auto flex-1 custom-scrollbar">
+          
+          {/* Location Module */}
+          <PanelSection title={L('LOCATION DATA', 'LOCATION DATA')}>
+            <div className="bg-black border border-green-900/60 p-3 mb-2 shadow-[0_0_10px_rgba(20,83,45,0.2)_inset]">
+              <p className="text-lg font-bold text-green-300 leading-tight shadow-green-900 drop-shadow-sm">{gameState.locationName}</p>
+            </div>
             <button 
               onClick={() => { onOpenMap(); if(onClose) onClose(); }}
-              className="w-full bg-green-900/30 border border-green-600 hover:bg-green-800/40 text-green-300 py-1.5 px-2 rounded-sm transition-all flex items-center justify-center space-x-2 group"
+              className="w-full border border-green-700 bg-green-900/10 hover:bg-green-900/30 text-green-400 py-1 text-xs tracking-widest flex items-center justify-center gap-2 transition-all"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-              </svg>
-              <span className="text-sm font-bold tracking-widest group-hover:text-green-100">VIEW MAP</span>
+              <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+              ACCESS MAP
             </button>
-          </div>
+          </PanelSection>
 
-          {/* Stats */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <h3 className="text-xs uppercase text-green-700 mb-1 border-b border-green-900/50 pb-1">{L('スコア', 'SCORE')}</h3>
-              <p className="text-2xl font-bold text-green-300">{gameState.score}</p>
+          {/* Vitals Module */}
+          <PanelSection title={L('VITALS', 'VITALS')}>
+            <div className="grid grid-cols-2 gap-3 mb-2">
+              <div className="bg-black p-2 border-l-2 border-green-600">
+                <span className="text-[9px] text-green-700 block mb-1">SCORE</span>
+                <span className="text-xl font-bold text-green-200">{gameState.score}</span>
+              </div>
+              <div className="bg-black p-2 border-l-2 border-green-600">
+                <span className="text-[9px] text-green-700 block mb-1">MOVES</span>
+                <span className="text-xl font-bold text-green-200">{gameState.moves}</span>
+              </div>
             </div>
-            <div>
-              <h3 className="text-xs uppercase text-green-700 mb-1 border-b border-green-900/50 pb-1">{L('ターン', 'MOVES')}</h3>
-              <p className="text-2xl font-bold text-green-300">{gameState.moves}</p>
+            {/* Fake data visualizer */}
+            <div className="flex gap-0.5 mt-2 opacity-50">
+               {[...Array(10)].map((_, i) => (
+                 <div key={i} className={`h-1 flex-1 ${i < (gameState.moves % 10) + 1 ? 'bg-green-500' : 'bg-green-900'}`}></div>
+               ))}
             </div>
-          </div>
+          </PanelSection>
 
-          {/* Inventory */}
-          <div>
-            <h3 className="text-xs uppercase text-green-700 mb-2 border-b border-green-900/50 pb-1">{L('持ち物 (Inventory)', 'INVENTORY')}</h3>
-            {gameState.inventory.length === 0 ? (
-              <p className="text-green-800 italic text-sm">{L('なし', 'Empty')}</p>
-            ) : (
-              <ul className="space-y-2">
-                {gameState.inventory.map((item, idx) => (
-                  <li key={idx} className="flex items-start">
-                    <span className="mr-2 text-green-700">-</span>
-                    <span className="text-green-400">{item}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
+          {/* Inventory Module */}
+          <PanelSection title={L('INVENTORY', 'INVENTORY')}>
+            <div className="min-h-[80px]">
+              {gameState.inventory.length === 0 ? (
+                <p className="text-green-900 italic text-xs text-center py-4">-- NO ITEMS CARRIED --</p>
+              ) : (
+                <ul className="space-y-1">
+                  {gameState.inventory.map((item, idx) => (
+                    <li key={idx} className="text-xs text-green-400 flex items-center bg-green-900/10 px-2 py-1 border-l-2 border-green-800">
+                      <span className="w-1 h-1 bg-green-600 mr-2"></span>
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </PanelSection>
+
+          {/* Settings Module */}
+          <PanelSection title="CONFIG">
+             <ToggleSwitch label="VISUALS" active={enableImages} onClick={onToggleImages} />
+             <ToggleSwitch label="SOUND" active={enableSound} onClick={onToggleSound} />
+             <ToggleSwitch label="MUSIC" active={enableMusic} onClick={onToggleMusic} />
+             <ToggleSwitch label="CRT EFFECT" active={enableCRT} onClick={onToggleCRT} />
+             <LangSwitch />
+          </PanelSection>
+
+          {/* System Module */}
+          <PanelSection title="SYSTEM" className="border-none">
+            <div className="grid grid-cols-2 gap-2">
+              <button 
+                onClick={() => { onSave(); if(onClose) onClose(); }}
+                disabled={!gameState}
+                className="border border-green-800 hover:bg-green-900/30 text-green-400 text-xs py-2 transition-colors disabled:opacity-30 disabled:cursor-not-allowed uppercase"
+              >
+                Save State
+              </button>
+              <button 
+                onClick={() => { onLoad(); if(onClose) onClose(); }}
+                disabled={!hasSaveData}
+                className="border border-green-800 hover:bg-green-900/30 text-green-400 text-xs py-2 transition-colors disabled:opacity-30 disabled:cursor-not-allowed uppercase"
+              >
+                Load State
+              </button>
+            </div>
+            {hasSaveData && <div className="text-[9px] text-green-600 text-center mt-1">:: MEMORY CARD DETECTED ::</div>}
+          </PanelSection>
+
         </div>
         
-        <div className="mt-auto mb-4 border-t border-green-900/30 pt-2">
-          <SettingsToggle />
-          <SystemControls />
-        </div>
-
-        <div className="p-4 border-t border-green-900 text-xs text-green-800 text-center">
-           Zork I Simulation
-           <br/>
-           Powered by Gemini 2.5 Flash
+        {/* Footer */}
+        <div className="p-2 border-t border-green-900 bg-black text-[9px] text-green-900 text-center font-mono">
+           ZORK ENGINE ONLINE<br/>
+           GEMINI-2.5-FLASH CONNECTED
         </div>
       </div>
     </>

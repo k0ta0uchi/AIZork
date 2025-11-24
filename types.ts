@@ -43,6 +43,7 @@ export enum ResponseCategory {
 }
 
 export enum BGMMood {
+  TITLE = 'TITLE',             // Title Screen
   EXPLORATION = 'EXPLORATION', // Outdoors, Nature, Adventure
   INDOOR = 'INDOOR',           // Inside House, Safe-ish, Cozy
   DUNGEON = 'DUNGEON',         // Underground, Cave, Echoey

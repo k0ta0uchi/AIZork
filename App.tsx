@@ -76,9 +76,13 @@ const App: React.FC = () => {
   const [sessionHistory, setSessionHistory] = useState<Content[]>([]);
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  
+  // Settings States
   const [enableImages, setEnableImages] = useState<boolean>(true);
   const [enableSound, setEnableSound] = useState<boolean>(true);
   const [enableMusic, setEnableMusic] = useState<boolean>(true);
+  const [enableCRT, setEnableCRT] = useState<boolean>(true);
+  
   const [hasSaveData, setHasSaveData] = useState<boolean>(false);
 
   // Mobile Menu State
@@ -117,6 +121,12 @@ const App: React.FC = () => {
 
   // Handle BGM changes based on game state
   useEffect(() => {
+    if (status === GameStatus.IDLE) {
+       // Play Title Screen BGM
+       playBGM(BGMMood.TITLE, GameVersion.ZORK1); // Use Zork1 as default container for Title theme
+       return;
+    }
+
     if (status === GameStatus.GAME_OVER) {
        playGameOverSound();
        stopBGM();
@@ -124,7 +134,6 @@ const App: React.FC = () => {
     }
 
     if (gameState?.bgmMood) {
-      // Pass selectedGame to support version-specific music
       playBGM(gameState.bgmMood, selectedGame);
     } else {
       stopBGM();
@@ -190,7 +199,6 @@ const App: React.FC = () => {
     const messageId = Date.now().toString();
     
     // --- Auto-Mapping Logic ---
-    // Merge previous visited locations with the current one
     const currentCoords = aiState.coordinates;
     const previousVisited = gameState?.visitedLocations || [];
     
@@ -202,7 +210,6 @@ const App: React.FC = () => {
       ? previousVisited 
       : [...previousVisited, currentCoords];
 
-    // Create the final state object with persistent visited locations
     const finalState: GameState = {
       ...aiState,
       visitedLocations: updatedVisited
@@ -245,7 +252,7 @@ const App: React.FC = () => {
     setStatus(GameStatus.LOADING);
     setHistory([{ id: 'connecting', role: 'model', text: T.connecting }]);
     setSessionHistory([]);
-    setGameState(null); // Clear previous state
+    setGameState(null);
 
     try {
       const { gameState: initialAiState, rawText } = await initializeGame(language, version);
@@ -305,7 +312,7 @@ const App: React.FC = () => {
     }));
 
     const saveData: SavedGame = {
-      gameState, // This now includes visitedLocations
+      gameState,
       displayHistory: sanitizedHistory,
       sessionHistory,
       timestamp: Date.now(),
@@ -330,20 +337,12 @@ const App: React.FC = () => {
     
     try {
       const saveData: SavedGame = JSON.parse(saved);
-      
-      // Basic version check
-      if (saveData.gameVersion && saveData.gameVersion !== selectedGame && status !== GameStatus.IDLE) {
-          // If already playing a game, don't allow cross-loading without warning
-          // But for simplicity, we'll allow it if from title screen logic handles it
-      }
-      
-      // Update selected game to match save
       setSelectedGame(saveData.gameVersion || GameVersion.ZORK1);
 
       setIsLoadModalOpen(false);
       setStatus(GameStatus.LOADING);
       
-      setGameState(saveData.gameState); // Restores visitedLocations
+      setGameState(saveData.gameState);
       setHistory(saveData.displayHistory);
       setSessionHistory(saveData.sessionHistory);
       if (saveData.language) {
@@ -386,94 +385,125 @@ const App: React.FC = () => {
     return T.defaultSuggestions.map(s => ({ ...s, autoSubmit: true }));
   };
 
-  // Determine dynamic placeholder text
   const getDynamicPlaceholder = () => {
     if (status !== GameStatus.PLAYING && status !== GameStatus.GAME_OVER) return T.placeholder;
-    
     if (gameState?.suggestions && gameState.suggestions.length > 0) {
       return `${T.hintPrefix}${gameState.suggestions[0]} ...`;
     }
-    
     return T.placeholder;
   };
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-black selection:bg-green-900 selection:text-white">
+    <div className="flex h-screen w-screen overflow-hidden bg-black selection:bg-green-900 selection:text-white relative">
+      {/* CRT Effects */}
+      {enableCRT && (
+        <>
+          <div className="bg-noise"></div>
+          <div className="scanlines"></div>
+          <div className="crt-vignette"></div>
+        </>
+      )}
+
+      {/* Background Grid for the Monitor Feel */}
+      <div 
+        className="absolute inset-0 z-0 opacity-10 pointer-events-none"
+        style={{
+          backgroundImage: 'linear-gradient(rgba(34, 197, 94, 0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(34, 197, 94, 0.1) 1px, transparent 1px)',
+          backgroundSize: '20px 20px'
+        }}
+      />
+      
       {/* Mobile Header */}
-      <div className="md:hidden fixed top-0 left-0 w-full bg-zinc-900 border-b border-green-800 z-20 px-4 py-2 flex justify-between items-center text-green-500 text-xs font-mono shadow-md">
-        <span className="truncate max-w-[50%]">{gameState?.locationName || (selectedGame === GameVersion.ZORK_REMIX ? 'ZORK REMIX' : selectedGame)}</span>
-        <div className="flex items-center space-x-4">
-          <span>SCR: {gameState?.score || 0}</span>
+      <div className="md:hidden fixed top-0 left-0 w-full bg-black/90 border-b-2 border-green-900 z-30 px-4 py-2 flex justify-between items-center text-green-500 text-xs font-mono shadow-[0_4px_10px_rgba(0,0,0,0.5)]">
+        <span className="truncate max-w-[50%] font-bold tracking-widest">{gameState?.locationName || 'TERMINAL ACTIVE'}</span>
+        <div className="flex items-center space-x-3">
+          <span className="text-green-700">|</span>
           <button 
             onClick={() => setIsMobileMenuOpen(true)}
-            className="p-1 border border-green-800 rounded bg-green-900/20 hover:bg-green-800/40 text-green-400"
+            className="flex items-center space-x-1 text-green-400 border border-green-800 rounded px-2 py-1 bg-green-950/50"
           >
-            {/* Hamburger Icon */}
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <span>SYS</span>
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
         </div>
       </div>
 
-      <div className="flex flex-1 flex-col relative w-full h-full pt-10 md:pt-0">
-        {/* Main Game Area */}
-        <div className="flex-1 flex flex-col min-h-0 relative z-10">
+      <div className="flex flex-1 flex-col relative w-full h-full pt-12 md:pt-0 z-10 p-2 md:p-6 md:pr-0">
+        {/* Main Monitor Container */}
+        <div className={`flex-1 flex flex-col min-h-0 relative border-2 border-green-900/60 bg-black/80 rounded-sm shadow-[0_0_15px_rgba(20,83,45,0.3)_inset] overflow-hidden ${enableCRT ? 'retro-border' : ''}`}>
           
           {/* Start Screen Overlay */}
           {status === GameStatus.IDLE && (
             <div className="absolute inset-0 flex items-center justify-center bg-black z-30 overflow-y-auto">
-              <div className="text-center space-y-6 p-8 border-4 border-green-800 rounded-lg shadow-[0_0_20px_rgba(34,197,94,0.2)] bg-zinc-950 max-w-lg mx-4 my-8">
-                <h1 className="text-6xl md:text-8xl font-bold text-green-500 tracking-tighter font-['VT323'] animate-crt">ZORK</h1>
-                <h2 className="text-xl text-green-700 tracking-widest uppercase mb-6">Interactive Fiction Saga</h2>
-                <p className="text-green-400 font-mono text-sm md:text-base whitespace-pre-wrap mb-6">
+               {/* Grid Background in Modal */}
+               <div className="absolute inset-0 opacity-20 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle, #15803d 1px, transparent 1px)', backgroundSize: '30px 30px' }}></div>
+
+              <div className="relative text-center w-full max-w-4xl p-4">
+                <div className="mb-12 border-b-2 border-green-800 pb-8">
+                  <h1 className={`text-8xl md:text-9xl font-bold text-green-500 tracking-tighter font-['VT323'] filter drop-shadow-[0_0_10px_rgba(34,197,94,0.6)] ${enableCRT ? 'animate-crt' : ''}`}>ZORK</h1>
+                  <h2 className="text-2xl text-green-700 tracking-[0.5em] uppercase mt-2">Interactive Fiction Saga</h2>
+                </div>
+                
+                <p className="text-green-400 font-mono text-base mb-10 opacity-80 max-w-xl mx-auto border-l-2 border-green-900 pl-4 text-left">
                   {T.titleSub}
                 </p>
                 
-                <div className="flex flex-col space-y-3 w-full max-w-xs mx-auto">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto px-4">
+                  {/* Zork I */}
                   <button 
                     onClick={() => handleStart(GameVersion.ZORK1)}
-                    className="px-4 py-3 bg-green-900/40 hover:bg-green-700 text-green-100 font-bold rounded border border-green-500 transition-colors font-mono text-lg flex flex-col items-center group"
+                    className="group relative h-40 border-2 border-green-900 bg-green-950/20 hover:bg-green-900/30 hover:border-green-500 transition-all duration-300 flex flex-col items-center justify-center p-4 overflow-hidden"
                   >
-                    <span>ZORK I</span>
-                    <span className="text-xs text-green-400 group-hover:text-green-200">The Great Underground Empire</span>
+                    <div className="absolute inset-0 opacity-0 group-hover:opacity-10 bg-[linear-gradient(45deg,transparent_25%,rgba(34,197,94,0.2)_50%,transparent_75%)] bg-[length:250%_250%] animate-pulse"></div>
+                    <span className="text-4xl font-bold text-green-300 mb-2 group-hover:text-green-100 group-hover:scale-110 transition-transform">I</span>
+                    <span className="text-sm font-bold uppercase tracking-wider text-green-500">The Great<br/>Underground Empire</span>
                   </button>
 
+                  {/* Zork II */}
                   <button 
                     onClick={() => handleStart(GameVersion.ZORK2)}
-                    className="px-4 py-3 bg-green-900/20 hover:bg-green-700 text-green-300 font-bold rounded border border-green-800 hover:border-green-500 transition-colors font-mono text-lg flex flex-col items-center group"
+                    className="group relative h-40 border-2 border-green-900 bg-green-950/20 hover:bg-green-900/30 hover:border-green-500 transition-all duration-300 flex flex-col items-center justify-center p-4 overflow-hidden"
                   >
-                    <span>ZORK II</span>
-                    <span className="text-xs text-green-600 group-hover:text-green-200">The Wizard of Frobozz</span>
+                     <div className="absolute inset-0 opacity-0 group-hover:opacity-10 bg-[linear-gradient(45deg,transparent_25%,rgba(34,197,94,0.2)_50%,transparent_75%)] bg-[length:250%_250%] animate-pulse"></div>
+                    <span className="text-4xl font-bold text-green-300 mb-2 group-hover:text-green-100 group-hover:scale-110 transition-transform">II</span>
+                    <span className="text-sm font-bold uppercase tracking-wider text-green-500">The Wizard<br/>of Frobozz</span>
                   </button>
 
+                  {/* Zork III */}
                   <button 
                     onClick={() => handleStart(GameVersion.ZORK3)}
-                    className="px-4 py-3 bg-green-900/20 hover:bg-green-700 text-green-300 font-bold rounded border border-green-800 hover:border-green-500 transition-colors font-mono text-lg flex flex-col items-center group"
+                    className="group relative h-40 border-2 border-green-900 bg-green-950/20 hover:bg-green-900/30 hover:border-green-500 transition-all duration-300 flex flex-col items-center justify-center p-4 overflow-hidden"
                   >
-                    <span>ZORK III</span>
-                    <span className="text-xs text-green-600 group-hover:text-green-200">The Dungeon Master</span>
+                     <div className="absolute inset-0 opacity-0 group-hover:opacity-10 bg-[linear-gradient(45deg,transparent_25%,rgba(34,197,94,0.2)_50%,transparent_75%)] bg-[length:250%_250%] animate-pulse"></div>
+                    <span className="text-4xl font-bold text-green-300 mb-2 group-hover:text-green-100 group-hover:scale-110 transition-transform">III</span>
+                    <span className="text-sm font-bold uppercase tracking-wider text-green-500">The Dungeon<br/>Master</span>
                   </button>
+                </div>
 
+                <div className="mt-8 flex flex-col md:flex-row gap-4 justify-center items-center">
                   {/* Remix Button */}
-                  <button 
+                   <button 
                     onClick={() => handleStart(GameVersion.ZORK_REMIX)}
-                    className="px-4 py-3 bg-purple-900/20 hover:bg-purple-800/50 text-purple-300 font-bold rounded border border-purple-800 hover:border-purple-500 transition-colors font-mono text-lg flex flex-col items-center group mt-4 shadow-[0_0_10px_rgba(168,85,247,0.2)]"
+                    className="w-full md:w-auto px-8 py-3 border border-purple-900 bg-purple-950/10 hover:bg-purple-900/30 hover:border-purple-500 text-purple-400 hover:text-purple-200 font-bold transition-all uppercase tracking-[0.2em] shadow-[0_0_15px_rgba(147,51,234,0.1)] relative overflow-hidden group"
                   >
-                    <span className="animate-pulse text-fuchsia-400 tracking-widest">ZORK REMIX</span>
-                    <span className="text-xs text-purple-500 group-hover:text-purple-300">Infinite Probability Randomizer</span>
+                    <span className="relative z-10">Zork Remix</span>
+                    <div className="absolute inset-0 bg-purple-500/10 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
                   </button>
 
                   {hasSaveData && (
-                    <div className="pt-4 border-t border-green-900/50 mt-2">
-                       <button 
-                        onClick={openLoadModal}
-                        className="w-full px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-green-400 font-bold rounded border border-green-800 transition-colors font-mono text-lg"
-                      >
-                        {T.loadButton}
-                      </button>
-                    </div>
+                     <button 
+                      onClick={openLoadModal}
+                      className="w-full md:w-auto px-8 py-3 border border-zinc-700 bg-zinc-900/50 hover:bg-zinc-800 text-green-400/80 font-bold transition-all uppercase tracking-widest"
+                    >
+                      {T.loadButton}
+                    </button>
                   )}
+                </div>
+                
+                <div className="mt-16 text-xs text-green-900 font-mono tracking-widest">
+                  COPYRIGHT (C) 2025 AI INTERACTIVE FICTION SYSTEMS
                 </div>
               </div>
             </div>
@@ -482,25 +512,30 @@ const App: React.FC = () => {
           {/* Error Screen */}
           {status === GameStatus.ERROR && (
             <div className="absolute inset-0 flex items-center justify-center bg-black/90 z-50">
-              <div className="text-center p-8 border border-red-800 rounded bg-red-950/20 text-red-500 font-mono">
-                <h3 className="text-xl font-bold mb-4">{T.errorTitle}</h3>
-                <p>{errorMsg}</p>
-                <button onClick={handleReset} className="mt-4 px-4 py-2 border border-red-500 hover:bg-red-900/50">{T.retryButton}</button>
+              <div className="text-center p-8 border-2 border-red-800 bg-black shadow-[0_0_50px_rgba(220,38,38,0.3)] max-w-lg">
+                <h3 className="text-3xl font-bold mb-6 text-red-500 tracking-widest border-b border-red-900 pb-2">{T.errorTitle}</h3>
+                <p className="text-red-400 font-mono mb-8">{errorMsg}</p>
+                <button onClick={handleReset} className="px-6 py-2 border border-red-600 text-red-500 hover:bg-red-900/30 hover:text-red-300 transition-colors uppercase tracking-widest">
+                  {T.retryButton}
+                </button>
               </div>
             </div>
           )}
 
+          {/* Game Output */}
           <GameLog history={history} isTyping={status === GameStatus.LOADING} />
 
+          {/* Game Over Panel */}
           {status === GameStatus.GAME_OVER && (
-             <div className="p-4 bg-zinc-900 border-t border-red-900 text-center">
-                <p className="text-red-500 font-bold mb-2 text-lg">{T.gameOver}</p>
-                <button onClick={handleReset} className="px-6 py-2 bg-red-900/30 border border-red-600 text-red-400 hover:bg-red-900/50 font-mono">
+             <div className="p-6 bg-zinc-950 border-t-2 border-red-900 text-center shadow-[0_-10px_30px_rgba(0,0,0,0.8)] relative z-20">
+                <p className="text-red-500 font-bold mb-4 text-2xl tracking-[0.5em] animate-pulse">{T.gameOver}</p>
+                <button onClick={handleReset} className="px-8 py-2 border border-red-700 text-red-500 hover:bg-red-900/20 hover:text-red-300 transition-colors font-mono tracking-widest">
                   {T.restartButton}
                 </button>
              </div>
           )}
 
+          {/* Input Area */}
           {status !== GameStatus.IDLE && status !== GameStatus.GAME_OVER && status !== GameStatus.ERROR && (
              <RetroInput 
                onSend={handleCommand} 
@@ -521,6 +556,8 @@ const App: React.FC = () => {
         onToggleSound={() => setEnableSound(!enableSound)}
         enableMusic={enableMusic}
         onToggleMusic={() => setEnableMusic(!enableMusic)}
+        enableCRT={enableCRT}
+        onToggleCRT={() => setEnableCRT(!enableCRT)}
         language={language}
         onToggleLanguage={handleToggleLanguage}
         onSave={openSaveModal}
@@ -531,7 +568,7 @@ const App: React.FC = () => {
         onOpenMap={() => setIsMapModalOpen(true)}
       />
 
-      {/* Save/Load Modal */}
+      {/* Modals */}
       <SaveLoadModal
         isOpen={isSaveModalOpen}
         mode="save"
@@ -546,8 +583,6 @@ const App: React.FC = () => {
         onAction={executeLoad}
         slots={saveSlots}
       />
-
-      {/* Map Modal */}
       <MapModal
         isOpen={isMapModalOpen}
         onClose={() => setIsMapModalOpen(false)}

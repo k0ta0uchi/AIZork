@@ -30,7 +30,7 @@ export const RetroInput: React.FC<RetroInputProps> = ({
     if (!disabled && autoFocus && inputRef.current) {
       inputRef.current.focus();
     }
-  }, [disabled, autoFocus, input]); // input dependency ensures focus comes back after typing
+  }, [disabled, autoFocus, input]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -60,17 +60,12 @@ export const RetroInput: React.FC<RetroInputProps> = ({
     if (e.key === 'ArrowUp') {
       e.preventDefault();
       if (commandHistory.length === 0) return;
-
-      const newIndex = historyIndex === -1 
-        ? commandHistory.length - 1 
-        : Math.max(0, historyIndex - 1);
-      
+      const newIndex = historyIndex === -1 ? commandHistory.length - 1 : Math.max(0, historyIndex - 1);
       setHistoryIndex(newIndex);
       setInput(commandHistory[newIndex]);
     } else if (e.key === 'ArrowDown') {
       e.preventDefault();
       if (historyIndex === -1) return;
-
       if (historyIndex < commandHistory.length - 1) {
         const newIndex = historyIndex + 1;
         setHistoryIndex(newIndex);
@@ -83,15 +78,16 @@ export const RetroInput: React.FC<RetroInputProps> = ({
   };
 
   return (
-    <div className="w-full bg-zinc-900 border-t-2 border-green-800">
-      {/* Suggestions Area */}
+    <div className="w-full bg-zinc-950 border-t-2 border-green-900/60 p-2 shadow-[0_-5px_15px_rgba(0,0,0,0.5)] z-30">
+      
+      {/* Suggestions Bar */}
       {!disabled && suggestions.length > 0 && (
-        <div className="flex overflow-x-auto py-2 px-2 gap-2 no-scrollbar border-b border-green-900/30">
+        <div className="flex overflow-x-auto gap-2 pb-2 mb-2 no-scrollbar px-1">
           {suggestions.map((s, idx) => (
             <button
               key={idx}
               onClick={() => handleSuggestionClick(s)}
-              className="whitespace-nowrap px-3 py-1 bg-green-900/20 border border-green-700/50 text-green-400 text-xs rounded hover:bg-green-800/50 hover:text-green-200 transition-colors font-mono flex-shrink-0"
+              className="whitespace-nowrap px-3 py-1 bg-green-900/10 border border-green-800 text-green-500 text-xs hover:bg-green-800 hover:text-green-100 transition-all font-mono flex-shrink-0 uppercase tracking-wider"
             >
               {s.label}
             </button>
@@ -99,21 +95,26 @@ export const RetroInput: React.FC<RetroInputProps> = ({
         </div>
       )}
 
-      {/* Input Area */}
-      <form onSubmit={handleSubmit} className="flex items-center w-full p-2">
-        <span className="mr-2 text-green-500 animate-pulse font-bold text-xl">{'>'}</span>
-        <input
-          ref={inputRef}
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={handleKeyDown}
-          disabled={disabled}
-          className="flex-1 bg-transparent border-none outline-none text-green-400 font-mono text-lg placeholder-green-800"
-          placeholder={disabled ? "..." : placeholder}
-          autoComplete="off"
-        />
-      </form>
+      {/* Main Input Field */}
+      <div className="relative flex items-center bg-black border border-green-800/50 p-3 shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)]">
+        <span className="text-green-500 font-bold text-xl mr-3 animate-pulse">{'>'}</span>
+        <form onSubmit={handleSubmit} className="flex-1">
+          <input
+            ref={inputRef}
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            disabled={disabled}
+            className="w-full bg-transparent border-none outline-none text-green-400 font-mono text-lg placeholder-green-900 caret-green-500"
+            placeholder={disabled ? "PROCESSING..." : placeholder}
+            autoComplete="off"
+            spellCheck="false"
+          />
+        </form>
+        {/* Blinking Cursor Block (Visual flair) */}
+        {!disabled && <div className="w-2 h-5 bg-green-500 opacity-50 animate-blink ml-1 hidden md:block pointer-events-none"></div>}
+      </div>
     </div>
   );
 };
